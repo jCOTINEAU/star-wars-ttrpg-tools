@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <title>Clock Timer</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background-color: white;
+      color: black;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      font-family: sans-serif;
+    }
+
+    #time {
+      font-size: 48px;
+      margin-top: 20px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Clock Timer</h1>
+  <div id="time">--:--</div>
+
+  <script>
+    const params = new URLSearchParams(location.search);
+    const duration = parseInt(params.get("duration") || 60);
+    const sound = new Audio('/sounds/tick-tock.mp3');
+    sound.preload = "auto";
+
+    const timeDisplay = document.getElementById('time');
+    let remaining = duration;
+    let tickInterval = 3;
+
+    function updateDisplay() {
+      const min = String(Math.floor(remaining / 60)).padStart(2, '0');
+      const sec = String(remaining % 60).padStart(2, '0');
+      timeDisplay.textContent = `${min}:${sec}`;
+    }
+
+    updateDisplay();
+    let soundCounter = 0;
+
+    const timer = setInterval(() => {
+      remaining--;
+      updateDisplay();
+
+      const percent = remaining / duration;
+      tickInterval = percent <= 0.30 ? 1 : 3;
+
+      soundCounter++;
+
+      if (soundCounter >= tickInterval) {
+        soundCounter = 0;
+        sound.currentTime = 0;
+        sound.play();
+      }
+
+      if (remaining <= 0) {
+        clearInterval(timer);
+        timeDisplay.textContent = "Time's up!";
+      }
+    }, 1000);
+  </script>
+</body>
+</html>

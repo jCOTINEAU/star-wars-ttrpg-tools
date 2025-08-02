@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  side-screen:
+    build:
+      context: ./side-screen/
+      dockerfile: Dockerfile
+    container_name: side-screen
+    ports:
+      - "3000:3000"  # or whatever port your app exposes
+    restart: unless-stopped
+    volumes:
+      - /Users/isacotineau/Documents/Jeremy/Logseq-jc-jdr/assets:/app/media
+
+  star-wars-intro:
+    build:
+      context: ./star-wars-intro/src
+      dockerfile: Dockerfile
+    container_name: star-wars-intro
+    ports:
+      - "8080:80"  # adjust based on your app
+    restart: unless-stopped
+
+  star-wars-widgets:
+    build:
+      context: ./star-wars-widgets
+      dockerfile: Dockerfile
+    container_name: star-wars-widgets
+    ports:
+      - "3001:3001"  # adjust based on your app
+    restart: unless-stopped
+
+  webrtc-screen-share:
+    build:
+      context: ./webrtc-screen-share
+      dockerfile: Dockerfile
+    container_name: webrtc-screen-share
+    ports:
+      - "3002:3000"  # adjust based on your app
+    restart: unless-stopped

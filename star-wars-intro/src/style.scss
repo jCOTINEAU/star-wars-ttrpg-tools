@@ -1,0 +1,149 @@
+@import "compass/css3";
+
+@import url(https://fonts.googleapis.com/css?family=News+Cycle:400,700);
+
+html,
+body {
+  width: 100%;
+  height: 100%;
+  font: 700 1em "News Cycle", sans-serif;
+  letter-spacing:.15em;
+	color: #ff6;
+ 	background-image: url('https://cdna.artstation.com/p/marketplace/presentation_assets/001/441/370/large/file.jpg?1640128516');
+  //background: #000; 
+	overflow: hidden;
+  margin: 0;
+}
+
+.starwars {
+    
+  section {
+    position: absolute;
+    top: 50%; //45
+    left: 50%;
+    z-index: 1;
+  } 
+
+  .start {
+    font-size: 100%;
+    $start-width: 14em;
+    width: $start-width;
+    margin: -4em 0 0 (- $start-width / 2);
+      // margin: -4em 0 0 (- $start-width / 2);
+    text-align: center;
+    cursor: pointer;
+    span {
+      color: rgb(75, 213, 238);
+    }
+  }    
+  
+  .logo {
+    opacity: 0;
+    animation: logo 6s ease-out 0.25s; 
+    // ^ this is for the Clone Wars / Liberty Wars Logo. First number is how long (duration) it takes todo its transformation. 2nd number is when it starts in relation to pushing "start"
+     svg {
+      width: inherit;
+    }
+  }
+  
+   .intro {
+    $intro-width: 15em; // default is 15. Bigger means wider.
+  	width: $intro-width;
+    margin: -4em 0 0 (- $intro-width / 2);
+	  font-size: 200%; // 
+	  font-weight: 500; // how thick the font is.
+  	color: rgb(75, 213, 238);
+    opacity: 0;
+	  animation: intro 6s ease-out 6s;
+   // ^ this is for the Quote. First number is how long (duration) it takes todo its transformation. 2nd number is when it starts in relation to pushing "start button".
+  }
+  .titles {
+    $titles-width: 18.65em; //14.65
+    width: $titles-width;
+    margin: 0 0 0 (- $titles-width / 2);
+    top: auto;
+    bottom: 0;
+  	height: 50em;
+  	font-size: 325%;
+  	text-align: justify;
+	  overflow: hidden;
+    transform-origin: 50% 100%;
+    @include transform(perspective(300px) rotateX(25deg));
+    > div {
+	    position: absolute;
+	    top: 100%;
+	    animation: titles 52s linear 14s; //54 14
+      // change the first number to length of music - seconds for the Logo and Intro animations (73s is Clone Wars music length) Make it even shorter to scroll faster and leave more of the music done afterwards. 2nd number is start time of showing the titles crawl. Should stay within one second or so of the "intro" end time
+      > p {
+	      margin: 1.35em 0 1.35em 0;
+        line-height: 1.35em;
+        // Tweak these for the margins (Top, Right, Bottom, Left) of the scrolling text and the line height.
+        @include backface-visibility(hidden);
+      }
+    }
+  }
+}
+
+@keyframes intro {
+  0% {
+    opacity: 0;
+  }  
+	20% { 
+    opacity: 1; 
+  }
+	90% { 
+    opacity: 1; 
+  }
+	100% { 
+    opacity: 0;
+  }
+}
+
+@keyframes logo {
+	0% { 
+    $logo-width: 18em; //18
+  	width: $logo-width;
+    margin: (- $logo-width / 2) 0 0 (- $logo-width / 2);
+    
+    @include transform(scale(8.75)); //2.75
+    opacity: 1; 
+  }
+	50% { 
+    opacity: 1; 
+    
+    $logo-width: 18em;
+  	width: $logo-width;
+    margin: (- $logo-width / 2) 0 0 (- $logo-width / 2);
+  }
+  80% {
+    opacity: 0.85;
+  }
+	100% { 
+    @include transform(scale(.1)); 
+    opacity: 0;
+    
+    $logo-width: 18em;
+  	width: $logo-width;
+    margin: (- $logo-width / 2) 0 0 (- $logo-width / 2);
+  }
+}
+
+@keyframes titles {  // this is the animation for the title crawl
+  // 0% - 100% is the progress of the animation
+  // top: 0% is the very top of the page. 100% is very bottom.
+	0% { 
+    top: 100%; 
+    opacity: 1;
+  }
+  95% {
+    opacity: 1;
+  }
+	100% { 
+    top: 0%; // this could be 0 or even negative if the crawl is really long
+    // Tweak based on length of Titles in HTML.
+    // If the animation stops before you get all the text, or if you want the text to end higher up on the page (or to start disappearing line by line) decrease this number below 0
+    // the lower (or more negative) then the farther the 'top' of the box holding the Titles text moves
+    // This is relative to the size of the page, not the Titles box.
+    opacity: 0;
+  }
+}

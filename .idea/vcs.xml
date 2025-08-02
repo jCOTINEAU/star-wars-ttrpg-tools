@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="VcsDirectoryMappings">
+    <mapping directory="$PROJECT_DIR$/side-screen" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/star-wars-intro" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/star-wars-widgets" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/webrtc-screen-share" vcs="Git" />
+  </component>
+</project>
