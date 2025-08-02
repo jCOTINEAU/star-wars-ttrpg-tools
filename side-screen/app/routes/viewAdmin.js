@@ -41,12 +41,16 @@ router.get("/", (req, res) => {
           object-fit: contain;
           display: none;
           cursor: crosshair;
+          transition: transform 0.3s ease;
+          transform-origin: center center;
         }
         iframe {
           width: 100vw;
           height: 100vh;
           border: none;
           display: none;
+          transition: transform 0.3s ease;
+          transform-origin: center center;
         }
         .ping {
           position: absolute;
@@ -125,6 +129,16 @@ router.get("/", (req, res) => {
             <span id="brush-size-display">30</span>px
           </label>
         </div>
+        <div style="margin-top: 10px;">
+          <label>Zoom: 
+            <span id="zoom-display">100</span>%
+          </label>
+          <div style="margin-top: 5px;">
+            <button id="zoom-out" style="background: #2196f3; color: white;">-</button>
+            <button id="zoom-reset" style="background: #4caf50; color: white;">Reset</button>
+            <button id="zoom-in" style="background: #2196f3; color: white;">+</button>
+          </div>
+        </div>
         <button id="reset-overlay" style="background: #f44336; color: white;">Réinitialiser</button>
       </div>
 
@@ -138,10 +152,17 @@ router.get("/", (req, res) => {
         const brushSizeSlider = document.getElementById('brush-size');
         const brushSizeDisplay = document.getElementById('brush-size-display');
         const resetOverlayBtn = document.getElementById('reset-overlay');
+        const zoomDisplay = document.getElementById('zoom-display');
+        const zoomInBtn = document.getElementById('zoom-in');
+        const zoomOutBtn = document.getElementById('zoom-out');
+        const zoomResetBtn = document.getElementById('zoom-reset');
 
         let isDrawing = false;
         let brushSize = 30;
         let overlayVisible = false;
+        let currentZoom = 1;
+        let zoomOriginX = 0.5; // 0.5 = center
+        let zoomOriginY = 0.5;
 
         // Update brush size display
         brushSizeSlider.addEventListener('input', () => {
@@ -156,6 +177,62 @@ router.get("/", (req, res) => {
               clearCanvas();
             })
             .catch(console.error);
+        });
+
+        // Zoom functionality
+        function updateZoom(newZoom, originX = 0.5, originY = 0.5) {
+          currentZoom = Math.max(0.1, Math.min(5, newZoom)); // Limit between 10% and 500%
+          zoomOriginX = originX;
+          zoomOriginY = originY;
+          
+          const transformOrigin = (originX * 100) + '% ' + (originY * 100) + '%';
+          const transform = 'scale(' + currentZoom + ')';
+          
+          img.style.transformOrigin = transformOrigin;
+          img.style.transform = transform;
+          iframe.style.transformOrigin = transformOrigin;
+          iframe.style.transform = transform;
+          
+          zoomDisplay.textContent = Math.round(currentZoom * 100);
+          
+          // Send to other clients
+          socket.emit('zoom', { 
+            scale: currentZoom, 
+            originX: zoomOriginX, 
+            originY: zoomOriginY 
+          });
+        }
+
+        // Zoom controls
+        zoomInBtn.addEventListener('click', () => {
+          updateZoom(currentZoom * 1.2);
+        });
+
+        zoomOutBtn.addEventListener('click', () => {
+          updateZoom(currentZoom / 1.2);
+        });
+
+        zoomResetBtn.addEventListener('click', () => {
+          updateZoom(1, 0.5, 0.5);
+        });
+
+        // Mouse wheel zoom
+        document.addEventListener('wheel', (e) => {
+          if (e.ctrlKey || e.metaKey) { // Ctrl/Cmd + wheel for zoom
+            e.preventDefault();
+            const rect = img.style.display !== 'none' ? 
+              img.getBoundingClientRect() : 
+              iframe.getBoundingClientRect();
+            
+            if (rect.width > 0 && rect.height > 0) {
+              // Calculate zoom origin based on mouse position
+              const originX = (e.clientX - rect.left) / rect.width;
+              const originY = (e.clientY - rect.top) / rect.height;
+              
+              const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+              updateZoom(currentZoom * zoomFactor, originX, originY);
+            }
+          }
         });
 
         function resizeCanvas() {
@@ -294,6 +371,23 @@ router.get("/", (req, res) => {
           if (overlayVisible) {
             revealArea(data.x, data.y, data.radius);
           }
+        });
+
+        socket.on('zoom', (data) => {
+          // Receive zoom updates from other clients (shouldn't happen but for consistency)
+          currentZoom = data.scale;
+          zoomOriginX = data.originX;
+          zoomOriginY = data.originY;
+          
+          const transformOrigin = (data.originX * 100) + '% ' + (data.originY * 100) + '%';
+          const transform = 'scale(' + data.scale + ')';
+          
+          img.style.transformOrigin = transformOrigin;
+          img.style.transform = transform;
+          iframe.style.transformOrigin = transformOrigin;
+          iframe.style.transform = transform;
+          
+          zoomDisplay.textContent = Math.round(data.scale * 100);
         });
 
         socket.on('show', data => {

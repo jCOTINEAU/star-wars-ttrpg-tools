@@ -27,6 +27,12 @@ function handleSockets(io) {
       socket.broadcast.emit("revealArea", data);
       console.log(`🎭 Zone révélée: x=${data.x}, y=${data.y}, radius=${data.radius}`);
     });
+
+    socket.on("zoom", (data) => {
+      // Broadcast zoom to all other clients
+      socket.broadcast.emit("zoom", data);
+      console.log(`🔍 Zoom appliqué: scale=${data.scale}, origin=${data.originX},${data.originY}`);
+    });
   });
 }
 

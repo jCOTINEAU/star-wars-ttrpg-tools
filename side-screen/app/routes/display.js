@@ -27,12 +27,16 @@ router.get("/", (req, res) => {
           object-fit: contain;
           display: none;
           cursor: crosshair;
+          transition: transform 0.3s ease;
+          transform-origin: center center;
         }
         iframe {
           width: 100vw;
           height: 100vh;
           border: none;
           display: none;
+          transition: transform 0.3s ease;
+          transform-origin: center center;
         }
         #overlay-canvas {
           position: absolute;
@@ -169,6 +173,16 @@ router.get("/", (req, res) => {
           if (overlayVisible) {
             revealArea(data.x, data.y, data.radius);
           }
+        });
+
+        socket.on('zoom', (data) => {
+          const transformOrigin = (data.originX * 100) + '% ' + (data.originY * 100) + '%';
+          const transform = 'scale(' + data.scale + ')';
+          
+          img.style.transformOrigin = transformOrigin;
+          img.style.transform = transform;
+          iframe.style.transformOrigin = transformOrigin;
+          iframe.style.transform = transform;
         });
 
         socket.on('show', data => {
