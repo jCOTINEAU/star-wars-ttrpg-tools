@@ -10,8 +10,22 @@ router.get("/", (req, res) => {
       <meta charset="utf-8" />
       <style>
         html, body {
-          margin: 0;
-          padding: 0;
+                socket.on('overlayToggle', (data) => {
+          overlayVisible = data.hidden;
+          resizeCanvas();
+          if (overlayVisible) {
+            // Hidden ON: Enable drawing and show black overlay
+            overlayCanvas.classList.add('revealing');
+            drawFullOverlay();
+            data.revealedAreas.forEach(area => {
+              revealArea(area.x, area.y, area.radius);
+            });
+          } else {
+            // Hidden OFF: Disable drawing and clear overlay
+            overlayCanvas.classList.remove('revealing');
+            clearCanvas();
+          }
+        });        padding: 0;
           width: 100vw;
           height: 100vh;
           background: black;
@@ -68,6 +82,7 @@ router.get("/", (req, res) => {
           z-index: 500;
           pointer-events: none;
           opacity: 0.5;
+          display: block;
         }
         #overlay-canvas.revealing {
           pointer-events: all;
@@ -184,6 +199,7 @@ router.get("/", (req, res) => {
         function startDrawing(e) {
           if (!overlayVisible) return;
           isDrawing = true;
+          e.stopPropagation(); // Prevent ping when drawing
           const rect = overlayCanvas.getBoundingClientRect();
           const x = e.clientX - rect.left;
           const y = e.clientY - rect.top;
@@ -195,6 +211,7 @@ router.get("/", (req, res) => {
 
         function draw(e) {
           if (!isDrawing || !overlayVisible) return;
+          e.stopPropagation(); // Prevent ping when drawing
           const rect = overlayCanvas.getBoundingClientRect();
           const x = e.clientX - rect.left;
           const y = e.clientY - rect.top;
@@ -236,13 +253,19 @@ router.get("/", (req, res) => {
           }, 1500);
         }
 
-        // Image click for pings (when not revealing)
-        img.addEventListener('click', (e) => {
-          if (img.style.display !== 'none' && !overlayVisible) {
-            const x = e.clientX;
-            const y = e.clientY;
-            createPing(x, y);
-            socket.emit('ping', { x, y });
+        // Universal click handler for pings (works on any content when not revealing)
+        document.addEventListener('click', (e) => {
+          // Only ping if we're not in the middle of drawing/revealing
+          if (!isDrawing) {
+            const hasVisibleImage = img.style.display !== 'none';
+            const hasVisibleIframe = iframe.style.display !== 'none';
+            
+            if (hasVisibleImage || hasVisibleIframe) {
+              const x = e.clientX;
+              const y = e.clientY;
+              createPing(x, y);
+              socket.emit('ping', { x, y });
+            }
           }
         });
 

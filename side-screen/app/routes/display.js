@@ -40,7 +40,7 @@ router.get("/", (req, res) => {
           left: 0;
           z-index: 500;
           pointer-events: none;
-          display: none;
+          display: block;
         }
         .ping {
           position: absolute;
@@ -126,9 +126,13 @@ router.get("/", (req, res) => {
           }, 1500);
         }
 
-        // Image click for pings (only when overlay is not active)
-        img.addEventListener('click', (e) => {
-          if (img.style.display !== 'none' && !overlayVisible) {
+        // Universal click handler for pings (works on any content)
+        document.addEventListener('click', (e) => {
+          // Check if we have visible content (image or iframe)
+          const hasVisibleImage = img.style.display !== 'none';
+          const hasVisibleIframe = iframe.style.display !== 'none';
+          
+          if (hasVisibleImage || hasVisibleIframe) {
             const x = e.clientX;
             const y = e.clientY;
             
@@ -148,16 +152,15 @@ router.get("/", (req, res) => {
         // Listen for overlay events
         socket.on('overlayToggle', (data) => {
           overlayVisible = data.hidden;
+          resizeCanvas();
           if (overlayVisible) {
-            overlayCanvas.style.display = 'block';
-            resizeCanvas();
+            // Hidden ON: Draw black overlay with revealed areas
             drawFullOverlay();
-            // Apply existing revealed areas
             data.revealedAreas.forEach(area => {
               revealArea(area.x, area.y, area.radius);
             });
           } else {
-            overlayCanvas.style.display = 'none';
+            // Hidden OFF: Clear everything (fully transparent)
             clearCanvas();
           }
         });
