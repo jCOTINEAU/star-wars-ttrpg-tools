@@ -1,6 +1,7 @@
 const express = require("express");
 const path = require("path");
 const { getImageFiles } = require("../utils/fileHelpers");
+const { getOverlayHidden, setOverlayHidden, clearRevealedAreas } = require("../utils/state");
 
 const router = express.Router();
 const mediaDir = path.join(__dirname, "..", "..", "media");
@@ -32,7 +33,29 @@ router.get("/", async (req, res) => {
       </style>
     </head>
     <body>
-      <h1>Sélectionne une image ou une URL à afficher</h1>
+      <h1>Contrôle</h1>
+
+      <!-- Overlay Controls -->
+      <div style="margin-bottom: 30px; padding: 15px; border: 2px solid #ddd; border-radius: 5px;">
+        <h3>🎭 Contrôles de masquage</h3>
+        <div style="margin-bottom: 10px;">
+          <label style="display: flex; align-items: center; gap: 10px;">
+            <input type="checkbox" id="hideImagesToggle" ${getOverlayHidden() ? 'checked' : ''} 
+                   style="transform: scale(1.5);" />
+            <span style="font-size: 18px; font-weight: bold;">Masquer les images</span>
+          </label>
+        </div>
+        <div style="margin-top: 10px;">
+          <button id="clearRevealedBtn" style="background: #ff5722; color: white; padding: 8px 16px; border: none; border-radius: 3px; cursor: pointer;">
+            🗑️ Réinitialiser les zones révélées
+          </button>
+          <a href="/view-admin" target="_blank" style="margin-left: 15px; background: #3f51b5; color: white; padding: 8px 16px; text-decoration: none; border-radius: 3px;">
+            👁️ Ouvrir la vue Admin
+          </a>
+        </div>
+      </div>
+
+      <h2>Sélectionne une image ou une URL à afficher</h2>
 
       <!-- Base URL Input -->
       <div style="margin-bottom: 20px;">
@@ -102,8 +125,42 @@ router.get("/", async (req, res) => {
         const aurebeshForm = document.getElementById("aurebeshForm");
         const hiddenAurebeshUrl = document.getElementById("hiddenAurebeshUrl");
 
+        // Overlay controls
+        const hideImagesToggle = document.getElementById("hideImagesToggle");
+        const clearRevealedBtn = document.getElementById("clearRevealedBtn");
+
         const BASE_URL_KEY = "myApp_baseUrl";
         const DEFAULT_BASE_URL = "http://192.168.1.73";
+
+        // Overlay functionality
+        hideImagesToggle.addEventListener("change", async () => {
+          try {
+            const response = await fetch("/api/overlay-toggle", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ hidden: hideImagesToggle.checked })
+            });
+            if (!response.ok) {
+              throw new Error("Failed to toggle overlay");
+            }
+          } catch (error) {
+            console.error("Error toggling overlay:", error);
+            hideImagesToggle.checked = !hideImagesToggle.checked; // Revert on error
+          }
+        });
+
+        clearRevealedBtn.addEventListener("click", async () => {
+          try {
+            const response = await fetch("/api/clear-revealed", {
+              method: "POST"
+            });
+            if (!response.ok) {
+              throw new Error("Failed to clear revealed areas");
+            }
+          } catch (error) {
+            console.error("Error clearing revealed areas:", error);
+          }
+        });
 
         // On page load, prefill baseUrl
         window.addEventListener("DOMContentLoaded", () => {

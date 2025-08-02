@@ -6,6 +6,7 @@ const path = require("path");
 const displayRoutes = require("./routes/display");
 const adminRoutes = require("./routes/admin");
 const setRoutes = require("./routes/set");
+const viewAdminRoutes = require("./routes/viewAdmin");
 const handleSockets = require("./sockets/displaySocket");
 
 const app = express();
@@ -17,12 +18,14 @@ setIO(io);
 
 // Middleware
 app.use(express.urlencoded({ extended: true }));
+app.use(express.json()); // Add JSON parsing for API routes
 app.use("/media", express.static(path.join(__dirname, "..", "media")));
 
 // Routes
 app.use("/", displayRoutes);
 app.use("/admin", adminRoutes);
-app.use("/", setRoutes); // POST /set
+app.use("/view-admin", viewAdminRoutes);
+app.use("/", setRoutes); // POST /set and API routes
 
 // WebSocket
 handleSockets(io);

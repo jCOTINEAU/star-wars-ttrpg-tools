@@ -6,7 +6,7 @@ router.get("/", (req, res) => {
     <!DOCTYPE html>
     <html>
     <head>
-      <title>Affichage</title>
+      <title>Vue Admin</title>
       <meta charset="utf-8" />
       <style>
         html, body {
@@ -32,14 +32,6 @@ router.get("/", (req, res) => {
           width: 100vw;
           height: 100vh;
           border: none;
-          display: none;
-        }
-        #overlay-canvas {
-          position: absolute;
-          top: 0;
-          left: 0;
-          z-index: 500;
-          pointer-events: none;
           display: none;
         }
         .ping {
@@ -69,12 +61,58 @@ router.get("/", (req, res) => {
             box-shadow: 0 0 60px #ff6b35;
           }
         }
+        #overlay-canvas {
+          position: absolute;
+          top: 0;
+          left: 0;
+          z-index: 500;
+          pointer-events: none;
+          opacity: 0.5;
+        }
+        #overlay-canvas.revealing {
+          pointer-events: all;
+          cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="white" stroke-width="2"/></svg>') 12 12, auto;
+        }
+        .admin-controls {
+          position: fixed;
+          top: 10px;
+          right: 10px;
+          z-index: 1001;
+          background: rgba(0,0,0,0.8);
+          color: white;
+          padding: 10px;
+          border-radius: 5px;
+          font-family: sans-serif;
+          font-size: 14px;
+        }
+        .admin-controls button {
+          margin: 5px;
+          padding: 5px 10px;
+          border: none;
+          border-radius: 3px;
+          cursor: pointer;
+        }
+        .brush-size {
+          margin: 5px;
+        }
       </style>
     </head>
     <body>
       <img id="display-img" />
       <iframe id="display-iframe"></iframe>
       <canvas id="overlay-canvas"></canvas>
+      
+      <div class="admin-controls">
+        <div>Vue Admin - Masquage d'image</div>
+        <div>
+          <label>Taille du pinceau: 
+            <input type="range" id="brush-size" min="10" max="100" value="30" class="brush-size">
+            <span id="brush-size-display">30</span>px
+          </label>
+        </div>
+        <button id="reset-overlay" style="background: #f44336; color: white;">Réinitialiser</button>
+      </div>
+
       <script src="/socket.io/socket.io.js"></script>
       <script>
         const socket = io();
@@ -82,8 +120,28 @@ router.get("/", (req, res) => {
         const iframe = document.getElementById('display-iframe');
         const overlayCanvas = document.getElementById('overlay-canvas');
         const ctx = overlayCanvas.getContext('2d');
+        const brushSizeSlider = document.getElementById('brush-size');
+        const brushSizeDisplay = document.getElementById('brush-size-display');
+        const resetOverlayBtn = document.getElementById('reset-overlay');
 
+        let isDrawing = false;
+        let brushSize = 30;
         let overlayVisible = false;
+
+        // Update brush size display
+        brushSizeSlider.addEventListener('input', () => {
+          brushSize = parseInt(brushSizeSlider.value);
+          brushSizeDisplay.textContent = brushSize;
+        });
+
+        // Reset overlay button
+        resetOverlayBtn.addEventListener('click', () => {
+          fetch('/api/clear-revealed', { method: 'POST' })
+            .then(() => {
+              clearCanvas();
+            })
+            .catch(console.error);
+        });
 
         function resizeCanvas() {
           overlayCanvas.width = window.innerWidth;
@@ -100,6 +158,9 @@ router.get("/", (req, res) => {
 
         function clearCanvas() {
           ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
+          if (overlayVisible) {
+            drawFullOverlay();
+          }
         }
 
         function revealArea(x, y, radius) {
@@ -110,15 +171,64 @@ router.get("/", (req, res) => {
           ctx.globalCompositeOperation = 'source-over';
         }
 
+        // Mouse/touch drawing events
+        overlayCanvas.addEventListener('mousedown', startDrawing);
+        overlayCanvas.addEventListener('mousemove', draw);
+        overlayCanvas.addEventListener('mouseup', stopDrawing);
+        overlayCanvas.addEventListener('mouseout', stopDrawing);
+
+        overlayCanvas.addEventListener('touchstart', handleTouch);
+        overlayCanvas.addEventListener('touchmove', handleTouch);
+        overlayCanvas.addEventListener('touchend', stopDrawing);
+
+        function startDrawing(e) {
+          if (!overlayVisible) return;
+          isDrawing = true;
+          const rect = overlayCanvas.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          revealArea(x, y, brushSize / 2);
+          
+          // Send to other clients
+          socket.emit('revealArea', { x, y, radius: brushSize / 2 });
+        }
+
+        function draw(e) {
+          if (!isDrawing || !overlayVisible) return;
+          const rect = overlayCanvas.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          revealArea(x, y, brushSize / 2);
+          
+          // Send to other clients
+          socket.emit('revealArea', { x, y, radius: brushSize / 2 });
+        }
+
+        function stopDrawing() {
+          isDrawing = false;
+        }
+
+        function handleTouch(e) {
+          e.preventDefault();
+          const touch = e.touches[0];
+          if (touch) {
+            const mouseEvent = new MouseEvent(e.type === 'touchstart' ? 'mousedown' : 
+                                           e.type === 'touchmove' ? 'mousemove' : 'mouseup', {
+              clientX: touch.clientX,
+              clientY: touch.clientY
+            });
+            overlayCanvas.dispatchEvent(mouseEvent);
+          }
+        }
+
         // Ping functionality
         function createPing(x, y) {
           const ping = document.createElement('div');
           ping.className = 'ping';
-          ping.style.left = (x - 20) + 'px'; // Center the ping circle
+          ping.style.left = (x - 20) + 'px';
           ping.style.top = (y - 20) + 'px';
           document.body.appendChild(ping);
           
-          // Remove the ping element after animation
           setTimeout(() => {
             if (ping.parentNode) {
               ping.parentNode.removeChild(ping);
@@ -126,30 +236,25 @@ router.get("/", (req, res) => {
           }, 1500);
         }
 
-        // Image click for pings (only when overlay is not active)
+        // Image click for pings (when not revealing)
         img.addEventListener('click', (e) => {
           if (img.style.display !== 'none' && !overlayVisible) {
             const x = e.clientX;
             const y = e.clientY;
-            
-            // Create ping locally
             createPing(x, y);
-            
-            // Send ping to other clients
             socket.emit('ping', { x, y });
           }
         });
 
-        // Listen for pings from other clients
+        // Socket events
         socket.on('ping', (data) => {
           createPing(data.x, data.y);
         });
 
-        // Listen for overlay events
         socket.on('overlayToggle', (data) => {
           overlayVisible = data.hidden;
           if (overlayVisible) {
-            overlayCanvas.style.display = 'block';
+            overlayCanvas.classList.add('revealing');
             resizeCanvas();
             drawFullOverlay();
             // Apply existing revealed areas
@@ -157,7 +262,7 @@ router.get("/", (req, res) => {
               revealArea(area.x, area.y, area.radius);
             });
           } else {
-            overlayCanvas.style.display = 'none';
+            overlayCanvas.classList.remove('revealing');
             clearCanvas();
           }
         });
@@ -190,7 +295,7 @@ router.get("/", (req, res) => {
           }
         });
 
-        // Initialize canvas and get current state
+        // Initialize
         window.addEventListener('resize', resizeCanvas);
         resizeCanvas();
         socket.emit('getCurrent');
@@ -202,4 +307,3 @@ router.get("/", (req, res) => {
 });
 
 module.exports = router;
-
