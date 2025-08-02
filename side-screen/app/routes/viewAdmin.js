@@ -10,22 +10,8 @@ router.get("/", (req, res) => {
       <meta charset="utf-8" />
       <style>
         html, body {
-                socket.on('overlayToggle', (data) => {
-          overlayVisible = data.hidden;
-          resizeCanvas();
-          if (overlayVisible) {
-            // Hidden ON: Enable drawing and show black overlay
-            overlayCanvas.classList.add('revealing');
-            drawFullOverlay();
-            data.revealedAreas.forEach(area => {
-              revealArea(area.x, area.y, area.radius);
-            });
-          } else {
-            // Hidden OFF: Disable drawing and clear overlay
-            overlayCanvas.classList.remove('revealing');
-            clearCanvas();
-          }
-        });        padding: 0;
+          margin: 0;
+          padding: 0;
           width: 100vw;
           height: 100vh;
           background: black;
@@ -51,6 +37,16 @@ router.get("/", (req, res) => {
           display: none;
           transition: transform 0.3s ease;
           transform-origin: center center;
+        }
+        #iframe-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100vw;
+          height: 100vh;
+          z-index: 100;
+          pointer-events: all;
+          display: none;
         }
         .ping {
           position: absolute;
@@ -84,12 +80,15 @@ router.get("/", (req, res) => {
           top: 0;
           left: 0;
           z-index: 500;
-          pointer-events: none;
-          opacity: 0.5;
+          pointer-events: all;
+          opacity: 0.01;
           display: block;
+          transition: opacity 0.3s ease;
+        }
+        #overlay-canvas.hide-mode {
+          opacity: 0.5;
         }
         #overlay-canvas.revealing {
-          pointer-events: all;
           cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="white" stroke-width="2"/></svg>') 12 12, auto;
         }
         .admin-controls {
@@ -119,6 +118,7 @@ router.get("/", (req, res) => {
     <body>
       <img id="display-img" />
       <iframe id="display-iframe"></iframe>
+      <div id="iframe-overlay"></div>
       <canvas id="overlay-canvas"></canvas>
       
       <div class="admin-controls">
@@ -147,6 +147,7 @@ router.get("/", (req, res) => {
         const socket = io();
         const img = document.getElementById('display-img');
         const iframe = document.getElementById('display-iframe');
+        const iframeOverlay = document.getElementById('iframe-overlay');
         const overlayCanvas = document.getElementById('overlay-canvas');
         const ctx = overlayCanvas.getContext('2d');
         const brushSizeSlider = document.getElementById('brush-size');
@@ -354,6 +355,8 @@ router.get("/", (req, res) => {
         socket.on('overlayToggle', (data) => {
           overlayVisible = data.hidden;
           if (overlayVisible) {
+            // Hide mode ON: Full opacity, enable drawing
+            overlayCanvas.classList.add('hide-mode');
             overlayCanvas.classList.add('revealing');
             resizeCanvas();
             drawFullOverlay();
@@ -362,6 +365,8 @@ router.get("/", (req, res) => {
               revealArea(area.x, area.y, area.radius);
             });
           } else {
+            // Hide mode OFF: Very low opacity, disable drawing but keep overlay for ping/zoom
+            overlayCanvas.classList.remove('hide-mode');
             overlayCanvas.classList.remove('revealing');
             clearCanvas();
           }
@@ -396,6 +401,7 @@ router.get("/", (req, res) => {
             iframe.style.display = "none";
             iframe.src = "";
             img.src = "";
+            iframeOverlay.style.display = "none";
             return;
           }
 
@@ -404,11 +410,15 @@ router.get("/", (req, res) => {
             img.style.display = "none";
             iframe.src = url;
             iframe.style.display = "block";
+            // Show iframe overlay for iframe content
+            iframeOverlay.style.display = "block";
           } else {
             iframe.style.display = "none";
             iframe.src = "";
             img.src = '/media/' + data;
             img.style.display = "block";
+            // Hide iframe overlay for image content
+            iframeOverlay.style.display = "none";
           }
         });
 
