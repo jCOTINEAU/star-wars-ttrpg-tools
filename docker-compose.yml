@@ -10,8 +10,8 @@ services:
       - "3000:3000"  # or whatever port your app exposes
     restart: unless-stopped
     volumes:
-      #- /Users/isacotineau/Documents/Jeremy/Logseq-jc-jdr/assets:/app/media
-      - /Users/jeremy.cotineau/Desktop:/app/media 
+      - /Users/isacotineau/Documents/Jeremy/Logseq-jc-jdr/assets:/app/media
+      #- /Users/jeremy.cotineau/Desktop:/app/media 
 
   star-wars-intro:
     build:

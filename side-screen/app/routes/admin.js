@@ -30,6 +30,23 @@ router.get("/", async (req, res) => {
           padding: 5px;
           font-size: 16px;
         }
+        .button-row {
+          display: flex;
+          gap: 10px;
+          flex-wrap: wrap;
+          margin-bottom: 20px;
+        }
+        .button-row form {
+          margin: 0;
+        }
+        .button-row button {
+          padding: 10px;
+          font-size: 16px;
+          color: white;
+          border: none;
+          border-radius: 3px;
+          cursor: pointer;
+        }
       </style>
     </head>
     <body>
@@ -40,7 +57,7 @@ router.get("/", async (req, res) => {
         <h3>🎭 Contrôles de masquage</h3>
         <div style="margin-bottom: 10px;">
           <label style="display: flex; align-items: center; gap: 10px;">
-            <input type="checkbox" id="hideImagesToggle" ${getOverlayHidden() ? 'checked' : ''} 
+            <input type="checkbox" id="hideImagesToggle" ${getOverlayHidden() ? 'checked' : ''}
                    style="transform: scale(1.5);" />
             <span style="font-size: 18px; font-weight: bold;">Masquer les images</span>
           </label>
@@ -69,7 +86,7 @@ router.get("/", async (req, res) => {
           <label>Durée (secondes):&nbsp;</label>
           <input type="number" id="durationInput" value="60" min="1" style="width:80px;" />
           <input type="hidden" name="imgUrl" id="hiddenImgUrl" />
-          <button type="submit" style="background: #2196f3; color: white; padding: 10px; font-size: 16px;">Afficher Timer</button>
+          <button type="submit" style="background: #2196f3;">Afficher Timer</button>
         </form>
       </div>
 
@@ -77,15 +94,19 @@ router.get("/", async (req, res) => {
       <div style="margin-bottom: 20px;">
         <form id="introForm" method="POST" action="/set">
           <input type="hidden" name="imgUrl" id="hiddenIntroUrl" />
-          <button type="submit" style="background: #ff9800; color: white; padding: 10px; font-size: 16px;">Afficher Intro</button>
+          <button type="submit" style="background: #ff9800;">Afficher Intro</button>
         </form>
       </div>
 
-      <!-- Aurebesh Block -->
-      <div style="margin-bottom: 20px;">
+      <!-- Aurebesh & Decrypted Aurebesh Buttons Side by Side -->
+      <div class="button-row">
         <form id="aurebeshForm" method="POST" action="/set">
           <input type="hidden" name="imgUrl" id="hiddenAurebeshUrl" />
-          <button type="submit" style="background: #9c27b0; color: white; padding: 10px; font-size: 16px;">Afficher Aurebesh</button>
+          <button type="submit" style="background: #9c27b0;">Afficher Aurebesh</button>
+        </form>
+        <form id="decryptedAurebeshForm" method="POST" action="/set">
+          <input type="hidden" name="imgUrl" id="hiddenDecryptedAurebeshUrl" />
+          <button type="submit" style="background: #673ab7;">Afficher Aurebesh Déchiffré</button>
         </form>
       </div>
 
@@ -125,7 +146,9 @@ router.get("/", async (req, res) => {
         const aurebeshForm = document.getElementById("aurebeshForm");
         const hiddenAurebeshUrl = document.getElementById("hiddenAurebeshUrl");
 
-        // Overlay controls
+        const decryptedAurebeshForm = document.getElementById("decryptedAurebeshForm");
+        const hiddenDecryptedAurebeshUrl = document.getElementById("hiddenDecryptedAurebeshUrl");
+
         const hideImagesToggle = document.getElementById("hideImagesToggle");
         const clearRevealedBtn = document.getElementById("clearRevealedBtn");
 
@@ -145,7 +168,7 @@ router.get("/", async (req, res) => {
             }
           } catch (error) {
             console.error("Error toggling overlay:", error);
-            hideImagesToggle.checked = !hideImagesToggle.checked; // Revert on error
+            hideImagesToggle.checked = !hideImagesToggle.checked;
           }
         });
 
@@ -162,58 +185,58 @@ router.get("/", async (req, res) => {
           }
         });
 
-        // On page load, prefill baseUrl
         window.addEventListener("DOMContentLoaded", () => {
           const savedBaseUrl = localStorage.getItem(BASE_URL_KEY);
           baseUrlInput.value = savedBaseUrl || DEFAULT_BASE_URL;
         });
 
-        // Save baseUrl when user types
         baseUrlInput.addEventListener("input", () => {
           localStorage.setItem(BASE_URL_KEY, baseUrlInput.value.trim());
         });
 
-        // Timer form submit
         timerForm.addEventListener("submit", function (e) {
           const baseUrl = baseUrlInput.value.trim();
           const duration = durationInput.value.trim() || "60";
-
           if (!baseUrl) {
             alert("Veuillez entrer une base URL.");
             e.preventDefault();
             return;
           }
-
           const finalUrl = \`\${baseUrl.replace(/\\/$/, "")}:3001/clock-timer?duration=\${encodeURIComponent(duration)}\`;
           hiddenImgUrl.value = finalUrl;
         });
 
-        // Intro form submit
         introForm.addEventListener("submit", function (e) {
           const baseUrl = baseUrlInput.value.trim();
-
           if (!baseUrl) {
             alert("Veuillez entrer une base URL.");
             e.preventDefault();
             return;
           }
-
           const finalUrl = \`\${baseUrl.replace(/\\/$/, "")}:8080\`;
           hiddenIntroUrl.value = finalUrl;
         });
 
-        // Aurebesh form submit
         aurebeshForm.addEventListener("submit", function (e) {
           const baseUrl = baseUrlInput.value.trim();
-
           if (!baseUrl) {
             alert("Veuillez entrer une base URL.");
             e.preventDefault();
             return;
           }
-
-          const finalUrl = \`\${baseUrl.replace(/\\/$/, "")}:3001/aurebesh\`;
+          const finalUrl = \`\${baseUrl.replace(/\\/$/, "")}:3001/aurebesh?aurebesh=1\`;
           hiddenAurebeshUrl.value = finalUrl;
+        });
+
+        decryptedAurebeshForm.addEventListener("submit", function (e) {
+          const baseUrl = baseUrlInput.value.trim();
+          if (!baseUrl) {
+            alert("Veuillez entrer une base URL.");
+            e.preventDefault();
+            return;
+          }
+          const finalUrl = \`\${baseUrl.replace(/\\/$/, "")}:3001/aurebesh?aurebesh=0\`;
+          hiddenDecryptedAurebeshUrl.value = finalUrl;
         });
       </script>
     </body>
