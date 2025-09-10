@@ -21,22 +21,32 @@ router.get("/", (req, res) => {
           position: relative;
           overflow: hidden;
         }
+        #content-wrapper {
+          position: relative;
+          width: 100vw;
+          height: 100vh;
+          overflow: hidden;
+          transform-origin: center center;
+        }
+        #content-wrapper img, #content-wrapper iframe, #content-wrapper canvas, #content-wrapper #iframe-overlay {
+          position: absolute;
+          top: 0;
+          left: 0;
+        }
         img {
           max-width: 100%;
           max-height: 100%;
           object-fit: contain;
           display: none;
           cursor: crosshair;
-          transition: transform 0.3s ease;
-          transform-origin: center center;
+          user-select: none;
         }
         iframe {
           width: 100vw;
           height: 100vh;
           border: none;
           display: none;
-          transition: transform 0.3s ease;
-          transform-origin: center center;
+          user-select: none;
         }
         #iframe-overlay {
           position: absolute;
@@ -116,10 +126,12 @@ router.get("/", (req, res) => {
       </style>
     </head>
     <body>
-      <img id="display-img" />
-      <iframe id="display-iframe"></iframe>
-      <div id="iframe-overlay"></div>
-      <canvas id="overlay-canvas"></canvas>
+      <div id="content-wrapper">
+        <img id="display-img" />
+        <iframe id="display-iframe"></iframe>
+        <div id="iframe-overlay"></div>
+        <canvas id="overlay-canvas"></canvas>
+      </div>
       
       <div class="admin-controls">
         <div>Vue Admin - Masquage d'image</div>
@@ -145,7 +157,8 @@ router.get("/", (req, res) => {
       <script src="/socket.io/socket.io.js"></script>
       <script>
         const socket = io();
-        const img = document.getElementById('display-img');
+  const wrapper = document.getElementById('content-wrapper');
+  const img = document.getElementById('display-img');
         const iframe = document.getElementById('display-iframe');
         const iframeOverlay = document.getElementById('iframe-overlay');
         const overlayCanvas = document.getElementById('overlay-canvas');
@@ -161,9 +174,12 @@ router.get("/", (req, res) => {
         let isDrawing = false;
         let brushSize = 30;
         let overlayVisible = false;
-        let currentZoom = 1;
-        let zoomOriginX = 0.5; // 0.5 = center
-        let zoomOriginY = 0.5;
+  let currentZoom = 1;
+  let zoomOriginX = 0.5; // 0.5 = center
+  let zoomOriginY = 0.5;
+  // Store strokes normalized to base canvas (viewport) size so wrapper scaling keeps alignment
+  // Each area: { nx, ny, rBase }
+  let localRevealedAreas = [];
 
         // Update brush size display
         brushSizeSlider.addEventListener('input', () => {
@@ -182,26 +198,15 @@ router.get("/", (req, res) => {
 
         // Zoom functionality
         function updateZoom(newZoom, originX = 0.5, originY = 0.5) {
-          currentZoom = Math.max(0.1, Math.min(5, newZoom)); // Limit between 10% and 500%
+          currentZoom = Math.max(0.1, Math.min(5, newZoom));
           zoomOriginX = originX;
           zoomOriginY = originY;
-          
           const transformOrigin = (originX * 100) + '% ' + (originY * 100) + '%';
-          const transform = 'scale(' + currentZoom + ')';
-          
-          img.style.transformOrigin = transformOrigin;
-          img.style.transform = transform;
-          iframe.style.transformOrigin = transformOrigin;
-          iframe.style.transform = transform;
-          
+          wrapper.style.transformOrigin = transformOrigin;
+          wrapper.style.transform = 'scale(' + currentZoom + ')';
           zoomDisplay.textContent = Math.round(currentZoom * 100);
-          
-          // Send to other clients
-          socket.emit('zoom', { 
-            scale: currentZoom, 
-            originX: zoomOriginX, 
-            originY: zoomOriginY 
-          });
+          repaintOverlay();
+          socket.emit('zoom', { scale: currentZoom, originX: zoomOriginX, originY: zoomOriginY });
         }
 
         // Zoom controls
@@ -239,9 +244,7 @@ router.get("/", (req, res) => {
         function resizeCanvas() {
           overlayCanvas.width = window.innerWidth;
           overlayCanvas.height = window.innerHeight;
-          if (overlayVisible) {
-            drawFullOverlay();
-          }
+          repaintOverlay();
         }
 
         function drawFullOverlay() {
@@ -251,18 +254,32 @@ router.get("/", (req, res) => {
 
         function clearCanvas() {
           ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
-          if (overlayVisible) {
-            drawFullOverlay();
-          }
+          if (overlayVisible) drawFullOverlay();
         }
 
-        function revealArea(x, y, radius) {
+        function revealAreaAbsolute(x, y, radius) {
           ctx.globalCompositeOperation = 'destination-out';
           ctx.beginPath();
           ctx.arc(x, y, radius, 0, Math.PI * 2);
           ctx.fill();
           ctx.globalCompositeOperation = 'source-over';
         }
+
+        function applyArea(area) {
+          const x = area.nx * overlayCanvas.width;
+          const y = area.ny * overlayCanvas.height;
+          const radius = area.rBase; // scales visually via wrapper zoom
+          revealAreaAbsolute(x, y, radius);
+        }
+
+        function repaintOverlay() {
+          if (!overlayVisible) return;
+          clearCanvas();
+          drawFullOverlay();
+          localRevealedAreas.forEach(applyArea);
+        }
+
+  function getContentRect() { return overlayCanvas.getBoundingClientRect(); }
 
         // Mouse/touch drawing events
         overlayCanvas.addEventListener('mousedown', startDrawing);
@@ -278,25 +295,25 @@ router.get("/", (req, res) => {
           if (!overlayVisible) return;
           isDrawing = true;
           e.stopPropagation(); // Prevent ping when drawing
-          const rect = overlayCanvas.getBoundingClientRect();
-          const x = e.clientX - rect.left;
-          const y = e.clientY - rect.top;
-          revealArea(x, y, brushSize / 2);
-          
-          // Send to other clients
-          socket.emit('revealArea', { x, y, radius: brushSize / 2 });
+          drawBrush(e);
         }
 
         function draw(e) {
           if (!isDrawing || !overlayVisible) return;
-          e.stopPropagation(); // Prevent ping when drawing
+          e.stopPropagation();
+          drawBrush(e);
+        }
+
+        function drawBrush(e) {
           const rect = overlayCanvas.getBoundingClientRect();
-          const x = e.clientX - rect.left;
-          const y = e.clientY - rect.top;
-          revealArea(x, y, brushSize / 2);
-          
-          // Send to other clients
-          socket.emit('revealArea', { x, y, radius: brushSize / 2 });
+          if (rect.width === 0) return;
+          const nx = (e.clientX - rect.left) / rect.width;
+          const ny = (e.clientY - rect.top) / rect.height;
+          const rBase = (brushSize / 2) / currentZoom; // constant on-screen size while painting
+          const area = { nx, ny, rBase };
+          localRevealedAreas.push(area);
+          applyArea(area);
+          socket.emit('revealArea', area);
         }
 
         function stopDrawing() {
@@ -352,46 +369,43 @@ router.get("/", (req, res) => {
           createPing(data.x, data.y);
         });
 
-        socket.on('overlayToggle', (data) => {
+  socket.on('overlayToggle', (data) => {
           overlayVisible = data.hidden;
           if (overlayVisible) {
-            // Hide mode ON: Full opacity, enable drawing
             overlayCanvas.classList.add('hide-mode');
             overlayCanvas.classList.add('revealing');
-            resizeCanvas();
-            drawFullOverlay();
-            // Apply existing revealed areas
-            data.revealedAreas.forEach(area => {
-              revealArea(area.x, area.y, area.radius);
+            localRevealedAreas = data.revealedAreas.map(a => {
+              if (a.nx !== undefined) return a;
+              if (a.wx !== undefined) return { nx: a.wx, ny: a.wy, rBase: a.wr * overlayCanvas.width };
+              if (a.relX !== undefined) return { nx: a.relX, ny: a.relY, rBase: a.relRadius * overlayCanvas.width };
+              if (a.x !== undefined) return { nx: a.x / overlayCanvas.width, ny: a.y / overlayCanvas.height, rBase: a.radius };
+              return a;
             });
+            resizeCanvas();
+            repaintOverlay();
           } else {
-            // Hide mode OFF: Very low opacity, disable drawing but keep overlay for ping/zoom
             overlayCanvas.classList.remove('hide-mode');
             overlayCanvas.classList.remove('revealing');
             clearCanvas();
           }
         });
 
-        socket.on('revealArea', (data) => {
-          if (overlayVisible) {
-            revealArea(data.x, data.y, data.radius);
-          }
+  socket.on('revealArea', (data) => {
+          if (!overlayVisible) return;
+          let area = data;
+          if (data.wx !== undefined) area = { nx: data.wx, ny: data.wy, rBase: data.wr * overlayCanvas.width };
+          else if (data.relX !== undefined) area = { nx: data.relX, ny: data.relY, rBase: data.relRadius * overlayCanvas.width };
+          localRevealedAreas.push(area);
+          applyArea(area);
         });
 
-        socket.on('zoom', (data) => {
-          // Receive zoom updates from other clients (shouldn't happen but for consistency)
+  socket.on('zoom', (data) => {
           currentZoom = data.scale;
           zoomOriginX = data.originX;
           zoomOriginY = data.originY;
-          
           const transformOrigin = (data.originX * 100) + '% ' + (data.originY * 100) + '%';
-          const transform = 'scale(' + data.scale + ')';
-          
-          img.style.transformOrigin = transformOrigin;
-          img.style.transform = transform;
-          iframe.style.transformOrigin = transformOrigin;
-          iframe.style.transform = transform;
-          
+          wrapper.style.transformOrigin = transformOrigin;
+          wrapper.style.transform = 'scale(' + currentZoom + ')';
           zoomDisplay.textContent = Math.round(data.scale * 100);
         });
 
@@ -423,7 +437,10 @@ router.get("/", (req, res) => {
         });
 
         // Initialize
-        window.addEventListener('resize', resizeCanvas);
+        window.addEventListener('resize', () => {
+          resizeCanvas();
+          repaintOverlay();
+        });
         resizeCanvas();
         socket.emit('getCurrent');
         socket.emit('getOverlayState');

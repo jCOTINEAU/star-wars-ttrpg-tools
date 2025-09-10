@@ -15,28 +15,37 @@ router.get("/", (req, res) => {
           width: 100vw;
           height: 100vh;
           background: black;
-          display: flex;
-          align-items: center;
-          justify-content: center;
           position: relative;
           overflow: hidden;
         }
+        #content-wrapper {
+          position: relative;
+          width: 100%;
+          height: 100%;
+          overflow: hidden;
+          transform-origin: center center;
+        }
+        #content-wrapper img, #content-wrapper iframe, #content-wrapper canvas {
+          position: absolute;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+        }
         img {
-          max-width: 100%;
-          max-height: 100%;
+          width: 100%;
+          height: 100%;
           object-fit: contain;
           display: none;
           cursor: crosshair;
-          transition: transform 0.3s ease;
-          transform-origin: center center;
+          user-select: none;
         }
         iframe {
-          width: 100vw;
-          height: 100vh;
           border: none;
           display: none;
-          transition: transform 0.3s ease;
-          transform-origin: center center;
+          user-select: none;
+          width: 100%;
+          height: 100%;
         }
         #overlay-canvas {
           position: absolute;
@@ -76,25 +85,30 @@ router.get("/", (req, res) => {
       </style>
     </head>
     <body>
-      <img id="display-img" />
-      <iframe id="display-iframe"></iframe>
-      <canvas id="overlay-canvas"></canvas>
+      <div id="content-wrapper">
+        <img id="display-img" />
+        <iframe id="display-iframe"></iframe>
+        <canvas id="overlay-canvas"></canvas>
+      </div>
       <script src="/socket.io/socket.io.js"></script>
       <script>
         const socket = io();
-        const img = document.getElementById('display-img');
+  const wrapper = document.getElementById('content-wrapper');
+  const img = document.getElementById('display-img');
         const iframe = document.getElementById('display-iframe');
         const overlayCanvas = document.getElementById('overlay-canvas');
         const ctx = overlayCanvas.getContext('2d');
 
         let overlayVisible = false;
+  let localRevealedAreas = [];
+  let currentZoom = 1;
+  let zoomOriginX = 0.5;
+  let zoomOriginY = 0.5;
 
         function resizeCanvas() {
           overlayCanvas.width = window.innerWidth;
           overlayCanvas.height = window.innerHeight;
-          if (overlayVisible) {
-            drawFullOverlay();
-          }
+          if (overlayVisible) repaintOverlay();
         }
 
         function drawFullOverlay() {
@@ -106,12 +120,28 @@ router.get("/", (req, res) => {
           ctx.clearRect(0, 0, overlayCanvas.width, overlayCanvas.height);
         }
 
-        function revealArea(x, y, radius) {
+        function revealAreaAbsolute(x, y, radius) {
           ctx.globalCompositeOperation = 'destination-out';
           ctx.beginPath();
           ctx.arc(x, y, radius, 0, Math.PI * 2);
           ctx.fill();
           ctx.globalCompositeOperation = 'source-over';
+        }
+
+  function getContentRect() { return overlayCanvas.getBoundingClientRect(); }
+
+        function applyArea(area) {
+          const x = area.nx * overlayCanvas.width;
+          const y = area.ny * overlayCanvas.height;
+          const radius = area.rBase; // wrapper scaling applies
+          revealAreaAbsolute(x, y, radius);
+        }
+
+        function repaintOverlay() {
+          if (!overlayVisible) return;
+          clearCanvas();
+          drawFullOverlay();
+          localRevealedAreas.forEach(applyArea);
         }
 
         // Ping functionality
@@ -156,33 +186,32 @@ router.get("/", (req, res) => {
         // Listen for overlay events
         socket.on('overlayToggle', (data) => {
           overlayVisible = data.hidden;
+          localRevealedAreas = data.revealedAreas.map(a => {
+            if (a.nx !== undefined) return a;
+            if (a.wx !== undefined) return { nx: a.wx, ny: a.wy, rBase: a.wr * overlayCanvas.width };
+            if (a.relX !== undefined) return { nx: a.relX, ny: a.relY, rBase: a.relRadius * overlayCanvas.width };
+            if (a.x !== undefined) return { nx: a.x / overlayCanvas.width, ny: a.y / overlayCanvas.height, rBase: a.radius };
+            return a;
+          });
           resizeCanvas();
-          if (overlayVisible) {
-            // Hidden ON: Draw black overlay with revealed areas
-            drawFullOverlay();
-            data.revealedAreas.forEach(area => {
-              revealArea(area.x, area.y, area.radius);
-            });
-          } else {
-            // Hidden OFF: Clear everything (fully transparent)
-            clearCanvas();
-          }
         });
 
         socket.on('revealArea', (data) => {
-          if (overlayVisible) {
-            revealArea(data.x, data.y, data.radius);
-          }
+          if (!overlayVisible) return;
+          let area = data;
+          if (data.wx !== undefined) area = { nx: data.wx, ny: data.wy, rBase: data.wr * overlayCanvas.width };
+          else if (data.relX !== undefined) area = { nx: data.relX, ny: data.relY, rBase: data.relRadius * overlayCanvas.width };
+          localRevealedAreas.push(area);
+          applyArea(area);
         });
 
         socket.on('zoom', (data) => {
+          currentZoom = data.scale;
+          zoomOriginX = data.originX;
+          zoomOriginY = data.originY;
           const transformOrigin = (data.originX * 100) + '% ' + (data.originY * 100) + '%';
-          const transform = 'scale(' + data.scale + ')';
-          
-          img.style.transformOrigin = transformOrigin;
-          img.style.transform = transform;
-          iframe.style.transformOrigin = transformOrigin;
-          iframe.style.transform = transform;
+          wrapper.style.transformOrigin = transformOrigin;
+          wrapper.style.transform = 'scale(' + currentZoom + ')';
         });
 
         socket.on('show', data => {
@@ -208,7 +237,7 @@ router.get("/", (req, res) => {
         });
 
         // Initialize canvas and get current state
-        window.addEventListener('resize', resizeCanvas);
+  window.addEventListener('resize', () => { resizeCanvas(); repaintOverlay(); });
         resizeCanvas();
         socket.emit('getCurrent');
         socket.emit('getOverlayState');
