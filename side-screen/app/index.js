@@ -20,6 +20,8 @@ setIO(io);
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json()); // Add JSON parsing for API routes
 app.use("/media", express.static(path.join(__dirname, "..", "media")));
+// Serve shared client assets
+app.use("/static", express.static(path.join(__dirname, "public")));
 
 // Routes
 app.use("/", displayRoutes);

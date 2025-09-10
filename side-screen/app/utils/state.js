@@ -34,6 +34,8 @@ function getOverlayHidden() {
 }
 
 function addRevealedArea(area) {
+  // Normalize: if both x,y given but no relX, treat as legacy absolute (store as-is)
+  // New clients send relX/relY/relRadius already.
   revealedAreas.push(area);
   if (ioInstance) {
     ioInstance.emit("revealArea", area);
