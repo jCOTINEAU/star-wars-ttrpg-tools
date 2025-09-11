@@ -8,7 +8,11 @@ class BattleState {
     this.mapHeight = 3000;
     this.ships = new Map(); // id -> ship
     this.lastAttackId = 0;
-  this.moveHistory = []; // stack of {id, from:{x,y}, to:{x,y}}
+  // Unified history stack (LIFO) containing last 10 reversible events:
+  //  - move:   { type:'move', id, from:{x,y}, to:{x,y} }
+  //  - speed:  { type:'speed', id, from:number, to:number }
+  //  - damage: { type:'damage', id, from:number, to:number }
+  this.history = [];
   this.maxHistory = 10;
   }
 
@@ -38,19 +42,25 @@ class BattleState {
     ship.y = clampedY;
     const to = { x: ship.x, y: ship.y };
     if (from.x !== to.x || from.y !== to.y) {
-      this.moveHistory.push({ id, from, to });
-      if (this.moveHistory.length > this.maxHistory) this.moveHistory.shift();
+      this._pushHistory({ type: 'move', id, from, to });
     }
     return { ...ship };
   }
 
-  undoMove() {
-    const entry = this.moveHistory.pop();
+  undoMove() { // reuses button/event name; now undoes last history entry of any supported type
+    const entry = this.history.pop();
     if (!entry) return null;
     const ship = this.ships.get(entry.id);
     if (!ship) return null;
-    ship.x = entry.from.x;
-    ship.y = entry.from.y;
+    if (entry.type === 'move') {
+      ship.x = entry.from.x;
+      ship.y = entry.from.y;
+    } else if (entry.type === 'speed') {
+      ship.speed = entry.from;
+    } else if (entry.type === 'damage') {
+      ship.hp = entry.from;
+      if (ship.hp > ship.maxHp) ship.hp = ship.maxHp;
+    }
     return { ...ship };
   }
 
@@ -61,8 +71,10 @@ class BattleState {
     // Simple placeholder damage logic: roll 1d10 - 3 (min 0)
     const roll = 1 + Math.floor(Math.random() * 10);
     const damage = Math.max(0, roll - 3);
+    const beforeHp = target.hp;
     if (damage > 0) {
       target.hp = Math.max(0, target.hp - damage);
+      this._pushHistory({ type: 'damage', id: target.id, from: beforeHp, to: target.hp });
     }
     const attackId = ++this.lastAttackId;
     return {
@@ -80,8 +92,10 @@ class BattleState {
     const target = this.ships.get(targetId);
     if (!attacker || !target) return { error: 'Invalid attacker or target' };
     const dmgVal = Math.max(0, Number(damage)||0);
+    const beforeHp = target.hp;
     if (dmgVal > 0) {
       target.hp = Math.max(0, target.hp - dmgVal);
+      this._pushHistory({ type: 'damage', id: target.id, from: beforeHp, to: target.hp });
     }
     const attackId = ++this.lastAttackId;
     return {
@@ -99,14 +113,24 @@ class BattleState {
   const allowed = ['name','hp','maxHp','speed','x','y','showHp','showSpeed'];
     for (const k of Object.keys(patch)) {
       if (allowed.includes(k) && patch[k] !== undefined) {
-        if (k === 'speed') ship[k] = Math.max(0, Math.min(5, Number(patch[k])||0));
-        else if (k === 'hp' || k === 'maxHp') ship[k] = Math.max(0, Number(patch[k])||0);
+        if (k === 'speed') {
+          const before = ship.speed || 0;
+          const after = Math.max(0, Math.min(5, Number(patch[k])||0));
+          if (before !== after) this._pushHistory({ type: 'speed', id, from: before, to: after });
+          ship[k] = after;
+        }
+        else if (k === 'hp' || k === 'maxHp') ship[k] = Math.max(0, Number(patch[k])||0); // direct edits to hp aren't considered "damage" per requirement
         else if (k === 'showHp' || k === 'showSpeed') ship[k] = !!patch[k];
         else ship[k] = patch[k];
       }
     }
     if (ship.hp > ship.maxHp) ship.hp = ship.maxHp;
     return { ...ship };
+  }
+
+  _pushHistory(entry) {
+    this.history.push(entry);
+    if (this.history.length > this.maxHistory) this.history.shift();
   }
 }
 
