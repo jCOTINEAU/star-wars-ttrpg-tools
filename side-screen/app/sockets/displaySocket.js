@@ -16,12 +16,13 @@ function handleSockets(io) {
     });
 
     socket.on("ping", (data) => {
-      // Prefer normalized viewport coords {vx,vy}; still relay legacy absolute {x,y}
-      socket.broadcast.emit("ping", data);
-      if (data && data.vx !== undefined) {
-        console.log(`📍 Ping (norm) vx=${data.vx.toFixed(3)}, vy=${data.vy.toFixed(3)}`);
+      // Tag with server side socket id for debugging
+      const payload = { ...data, sid: socket.id };
+      socket.broadcast.emit("ping", payload);
+      if (payload && payload.vx !== undefined) {
+        console.log(`📍 Ping (norm) from=${payload.origin||'unknown'} sid=${socket.id} vx=${payload.vx.toFixed(3)}, vy=${payload.vy.toFixed(3)}`);
       } else {
-        console.log(`📍 Ping (legacy) x=${data.x}, y=${data.y}`);
+        console.log(`📍 Ping (legacy) from=${payload.origin||'unknown'} sid=${socket.id} x=${payload.x}, y=${payload.y}`);
       }
     });
 

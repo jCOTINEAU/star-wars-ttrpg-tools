@@ -345,19 +345,28 @@ router.get("/", (req, res) => {
           }
         }
 
-        // Ping functionality
-        function createPing(x, y) {
+        // Ping functionality (normalized & rendered inside wrapper so zoom stays consistent)
+        const _pingPool = [];
+        const MAX_PINGS = 40;
+        function createPingNormalized(vx, vy) {
+          const rect = wrapper.getBoundingClientRect();
+          if (!rect.width || !rect.height) return;
+          const baseW = rect.width / currentZoom;
+          const baseH = rect.height / currentZoom;
           const ping = document.createElement('div');
           ping.className = 'ping';
-          ping.style.left = (x - 20) + 'px';
-          ping.style.top = (y - 20) + 'px';
-          document.body.appendChild(ping);
-          
-          setTimeout(() => {
-            if (ping.parentNode) {
-              ping.parentNode.removeChild(ping);
-            }
-          }, 1500);
+          const px = vx * baseW;
+          const py = vy * baseH;
+          ping.style.left = (px - 20) + 'px';
+          ping.style.top = (py - 20) + 'px';
+          wrapper.appendChild(ping);
+          _pingPool.push(ping);
+          if (_pingPool.length > MAX_PINGS) {
+            const old = _pingPool.shift();
+            if (old && old.parentNode) old.remove();
+          }
+          // Remove only the ping element after animation, not its parent
+          setTimeout(() => { if (ping.isConnected) ping.remove(); }, 1500);
         }
 
         // Ping only when clicking inside active content (image/iframe) within viewport
@@ -371,21 +380,20 @@ router.get("/", (req, res) => {
           if (!rect.width || !rect.height) return;
           const vx = (e.clientX - rect.left) / rect.width;
           const vy = (e.clientY - rect.top) / rect.height;
-          createPing(e.clientX, e.clientY);
-          socket.emit('ping', { vx, vy });
+          createPingNormalized(vx, vy);
+          socket.emit('ping', { vx, vy, origin: 'admin' });
         });
 
         // Socket events
         socket.on('ping', (data) => {
-          const activeEl = img.style.display !== 'none' ? img : (iframe.style.display !== 'none' ? iframe : null);
-          if (!activeEl) return;
-          const rect = activeEl.getBoundingClientRect();
-          if (data && data.vx !== undefined) {
-            const x = rect.left + data.vx * rect.width;
-            const y = rect.top + data.vy * rect.height;
-            createPing(x, y);
-          } else if (data && data.x !== undefined) { // legacy absolute fallback
-            createPing(data.x, data.y);
+          if (!data) return;
+          if (data.vx !== undefined) {
+            createPingNormalized(data.vx, data.vy);
+          } else if (data.x !== undefined) {
+            const rect = wrapper.getBoundingClientRect();
+            const vx = (data.x - rect.left) / rect.width;
+            const vy = (data.y - rect.top) / rect.height;
+            if (vx >= 0 && vx <= 1 && vy >= 0 && vy <= 1) createPingNormalized(vx, vy);
           }
         });
 
