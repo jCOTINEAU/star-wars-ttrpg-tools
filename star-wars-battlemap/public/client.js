@@ -32,6 +32,8 @@
   const PAN_STEP = 200;
   const LONG_PRESS_MS = 1000; // 1 second hold for attack
   const DRAG_THRESHOLD = 4;   // px before starting drag cancels long press
+  const rangeOverlay = document.getElementById('rangeOverlay');
+  let staticRangeOrigin = null; // {x,y,shipId}
 
   function applyView() {
     mapEl.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
@@ -98,13 +100,12 @@
     clearSelection();
     selectedShipId = id;
     lastSelectionTimestamp = Date.now();
-    const ship = ships.get(id);
+  const ship = ships.get(id);
     if (!ship) return;
     const el = document.getElementById('ship-'+id);
-    if (el) {
-      el.classList.add('selected');
-      renderRangeRings(el, ship);
-    }
+  if (el) el.classList.add('selected');
+  staticRangeOrigin = { x: ship.x, y: ship.y, shipId: ship.id };
+  renderRangeRings(el, ship);
     selectedInfo.textContent = `Selected: ${ship.name} (HP ${ship.hp}/${ship.maxHp})`;
   if (isAdmin) openShipPanel(ship);
   }
@@ -112,28 +113,29 @@
   function clearSelection() {
     if (!selectedShipId) return;
     const prev = document.getElementById('ship-'+selectedShipId);
-    if (prev) {
-      prev.classList.remove('selected');
-      const rings = prev.querySelector('.range-rings');
-      if (rings) rings.innerHTML = '';
-    }
+  if (prev) prev.classList.remove('selected');
+  rangeOverlay.innerHTML = '';
     selectedShipId = null;
     selectedInfo.textContent = 'No selection';
   if (isAdmin) hideShipPanel();
   }
 
   function renderRangeRings(el, ship) {
-    const container = el.querySelector('.range-rings');
-    container.innerHTML = '';
+    rangeOverlay.innerHTML = '';
+    if (!ship) return;
+    const originX = staticRangeOrigin && staticRangeOrigin.shipId === ship.id ? staticRangeOrigin.x : ship.x;
+    const originY = staticRangeOrigin && staticRangeOrigin.shipId === ship.id ? staticRangeOrigin.y : ship.y;
     (globalRangeBands || []).forEach((r, idx) => {
       const ring = document.createElement('div');
       ring.className = 'range-ring band-'+idx;
       ring.style.width = (r*2)+'px';
       ring.style.height = (r*2)+'px';
-  // Immediate border width set based on current scale
-  const base = 2;
-  ring.style.borderWidth = Math.min(6, base / scale) + 'px';
-      container.appendChild(ring);
+      ring.style.left = originX + 'px';
+      ring.style.top = originY + 'px';
+      ring.style.transform = 'translate(-50%, -50%)';
+      const base = 2;
+      ring.style.borderWidth = Math.min(6, base / scale) + 'px';
+      rangeOverlay.appendChild(ring);
     });
   }
 
@@ -194,6 +196,7 @@
         dragStart.mx = e.clientX; dragStart.my = e.clientY;
         ship.x += dx; ship.y += dy;
         positionShipEl(el, ship);
+        // Rings remain at original origin until drop
       }
     }
 
@@ -206,6 +209,10 @@
         el.classList.remove('dragging');
         const ship = ships.get(id);
         socket.emit('moveShip', { id, x: ship.x, y: ship.y });
+        if (selectedShipId === id) {
+          staticRangeOrigin = { x: ship.x, y: ship.y, shipId: id };
+          renderRangeRings(el, ship);
+        }
       } else if (!longPressTriggered) {
         // Simple tap selection (no drag, no long press)
         selectShip(id);
@@ -265,6 +272,8 @@
   document.getElementById('panRight').onclick = () => { offsetX -= PAN_STEP; applyView(); };
   document.getElementById('panUp').onclick = () => { offsetY += PAN_STEP; applyView(); };
   document.getElementById('panDown').onclick = () => { offsetY -= PAN_STEP; applyView(); };
+  const undoBtn = document.getElementById('undoMove');
+  if (undoBtn) undoBtn.onclick = () => { socket.emit('undoMove'); };
 
   // Background click clears selection
   mapEl.addEventListener('mousedown', () => { clearSelection(); });
