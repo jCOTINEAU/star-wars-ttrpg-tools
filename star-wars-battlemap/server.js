@@ -6,6 +6,7 @@ const BattleState = require('./src/state');
 
 const PORT = process.env.PORT || 3010;
 const GLOBAL_RANGE_BANDS = [200, 400, 800, 1600, 3200];
+let sharedView = { scale: 0.5, offsetX: 0, offsetY: 0 };
 
 const app = express();
 const server = http.createServer(app);
@@ -21,7 +22,7 @@ app.use('/assets', express.static(path.join(__dirname, 'public')));
 
 // API endpoints
 app.get('/api/state', (req, res) => {
-  res.json({ ...state.getState(), rangeBands: GLOBAL_RANGE_BANDS });
+  res.json({ ...state.getState(), rangeBands: GLOBAL_RANGE_BANDS, view: sharedView });
 });
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
@@ -34,7 +35,7 @@ app.get('/', (_req, res) => {
 // Socket events
 io.on('connection', socket => {
   // Initial full sync
-  socket.emit('fullState', { ...state.getState(), rangeBands: GLOBAL_RANGE_BANDS });
+  socket.emit('fullState', { ...state.getState(), rangeBands: GLOBAL_RANGE_BANDS, view: sharedView });
 
   socket.on('moveShip', ({ id, x, y }) => {
     if (typeof id !== 'string') return;
@@ -62,6 +63,14 @@ io.on('connection', socket => {
   socket.on('undoMove', () => {
     const undone = state.undoMove();
     if (undone) io.emit('shipMoved', undone);
+  });
+  socket.on('setView', (view) => {
+    if (!view || typeof view !== 'object') return;
+    const s = Math.min(2.5, Math.max(0.15, Number(view.scale)));
+    const ox = Number(view.offsetX) || 0;
+    const oy = Number(view.offsetY) || 0;
+    sharedView = { scale: s, offsetX: ox, offsetY: oy };
+    io.emit('viewUpdated', sharedView);
   });
 });
 

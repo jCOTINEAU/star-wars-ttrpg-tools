@@ -42,11 +42,9 @@
   const base = 2; // matches CSS base border width
   const adjusted = Math.min(6, base / scale); // thicker when zoomed out
   rings.forEach(r => { r.style.borderWidth = adjusted + 'px'; });
-    // Keep range labels constant screen size by inverse scaling
-    const labels = mapEl.querySelectorAll('.range-label');
-    labels.forEach(l => {
-      l.style.transform = `translate(-50%, -120%) scale(${1/scale})`;
-    });
+  // Range labels now scale with zoom (no inverse scaling)
+  const labels = mapEl.querySelectorAll('.range-label');
+  labels.forEach(l => { l.style.transform = 'translate(-50%, -120%)'; });
   }
 
   function clampScale(v){ return Math.min(2.5, Math.max(0.15, v)); }
@@ -146,7 +144,7 @@
       label.className = 'range-label';
       label.textContent = labels[idx] || '';
   // Inverse scale so it appears constant size
-  label.style.transform = `translate(-50%, -120%) scale(${1/scale})`;
+  label.style.transform = 'translate(-50%, -120%)';
       ring.appendChild(label);
       rangeOverlay.appendChild(ring);
     });
@@ -247,6 +245,11 @@
     ships = new Map(data.ships.map(s => [s.id, s]));
     mapEl.style.width = data.map.width + 'px';
     mapEl.style.height = data.map.height + 'px';
+    if (data.view) {
+      if (typeof data.view.scale === 'number') scale = clampScale(data.view.scale);
+      if (typeof data.view.offsetX === 'number') offsetX = data.view.offsetX;
+      if (typeof data.view.offsetY === 'number') offsetY = data.view.offsetY;
+    }
     ships.forEach(ship => createShipElement(ship));
     applyView();
   }
@@ -277,14 +280,23 @@
     if (res.damage > 0) animateLaser(res.attackerId, res.targetId);
   });
 
+  socket.on('viewUpdated', (v) => {
+    if (!v) return;
+    if (typeof v.scale === 'number') scale = clampScale(v.scale);
+    if (typeof v.offsetX === 'number') offsetX = v.offsetX;
+    if (typeof v.offsetY === 'number') offsetY = v.offsetY;
+    applyView();
+  });
+
   // UI controls
-  document.getElementById('zoomIn').onclick = () => { scale = clampScale(scale + ZOOM_STEP); applyView(); };
-  document.getElementById('zoomOut').onclick = () => { scale = clampScale(scale - ZOOM_STEP); applyView(); };
-  document.getElementById('resetView').onclick = () => { scale = 0.5; offsetX = 0; offsetY = 0; applyView(); };
-  document.getElementById('panLeft').onclick = () => { offsetX += PAN_STEP; applyView(); };
-  document.getElementById('panRight').onclick = () => { offsetX -= PAN_STEP; applyView(); };
-  document.getElementById('panUp').onclick = () => { offsetY += PAN_STEP; applyView(); };
-  document.getElementById('panDown').onclick = () => { offsetY -= PAN_STEP; applyView(); };
+  function broadcastView(){ socket.emit('setView', { scale, offsetX, offsetY }); }
+  document.getElementById('zoomIn').onclick = () => { scale = clampScale(scale + ZOOM_STEP); applyView(); broadcastView(); };
+  document.getElementById('zoomOut').onclick = () => { scale = clampScale(scale - ZOOM_STEP); applyView(); broadcastView(); };
+  document.getElementById('resetView').onclick = () => { scale = 0.5; offsetX = 0; offsetY = 0; applyView(); broadcastView(); };
+  document.getElementById('panLeft').onclick = () => { offsetX += PAN_STEP; applyView(); broadcastView(); };
+  document.getElementById('panRight').onclick = () => { offsetX -= PAN_STEP; applyView(); broadcastView(); };
+  document.getElementById('panUp').onclick = () => { offsetY += PAN_STEP; applyView(); broadcastView(); };
+  document.getElementById('panDown').onclick = () => { offsetY -= PAN_STEP; applyView(); broadcastView(); };
   const undoBtn = document.getElementById('undoMove');
   if (undoBtn) undoBtn.onclick = () => { socket.emit('undoMove'); };
 
