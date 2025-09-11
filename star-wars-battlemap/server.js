@@ -5,7 +5,7 @@ const path = require('path');
 const BattleState = require('./src/state');
 
 const PORT = process.env.PORT || 3010;
-const GLOBAL_RANGE_BANDS = [200, 400, 800, 1600];
+const GLOBAL_RANGE_BANDS = [200, 400, 800, 1600, 3200];
 
 const app = express();
 const server = http.createServer(app);
