@@ -17,6 +17,8 @@
       <button id="panLeft" title="Pan Left">◀</button>
       <button id="panRight" title="Pan Right">▶</button>
       <button id="panDown" title="Pan Down">▼</button>
+  <span class="sep"></span>
+  <button id="undoMove" title="Undo last move">↶ Undo</button>
       <span class="sep"></span>
       <span id="selectedInfo">No selection</span>
     </div>
@@ -25,6 +27,7 @@
   <div id="viewport">
     <div id="map" class="map-layer">
       <!-- Ships injected here -->
+      <div id="rangeOverlay"></div>
     </div>
     <aside id="shipPanel" class="side-panel hidden">
       <h3>Ship</h3>

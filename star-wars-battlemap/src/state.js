@@ -8,6 +8,8 @@ class BattleState {
     this.mapHeight = 3000;
     this.ships = new Map(); // id -> ship
     this.lastAttackId = 0;
+  this.moveHistory = []; // stack of {id, from:{x,y}, to:{x,y}}
+  this.maxHistory = 10;
   }
 
   loadInitialShips(filePath) {
@@ -29,8 +31,26 @@ class BattleState {
   moveShip(id, x, y) {
     const ship = this.ships.get(id);
     if (!ship) return null;
-    ship.x = Math.max(0, Math.min(this.mapWidth, x));
-    ship.y = Math.max(0, Math.min(this.mapHeight, y));
+    const clampedX = Math.max(0, Math.min(this.mapWidth, x));
+    const clampedY = Math.max(0, Math.min(this.mapHeight, y));
+    const from = { x: ship.x, y: ship.y };
+    ship.x = clampedX;
+    ship.y = clampedY;
+    const to = { x: ship.x, y: ship.y };
+    if (from.x !== to.x || from.y !== to.y) {
+      this.moveHistory.push({ id, from, to });
+      if (this.moveHistory.length > this.maxHistory) this.moveHistory.shift();
+    }
+    return { ...ship };
+  }
+
+  undoMove() {
+    const entry = this.moveHistory.pop();
+    if (!entry) return null;
+    const ship = this.ships.get(entry.id);
+    if (!ship) return null;
+    ship.x = entry.from.x;
+    ship.y = entry.from.y;
     return { ...ship };
   }
 

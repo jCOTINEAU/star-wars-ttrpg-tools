@@ -58,6 +58,11 @@ io.on('connection', socket => {
     io.emit('shipMoved', updated); // reuse existing handler to refresh position/hp/name
     socket.emit('shipUpdateResult', { ok: true, ship: updated });
   });
+
+  socket.on('undoMove', () => {
+    const undone = state.undoMove();
+    if (undone) io.emit('shipMoved', undone);
+  });
 });
 
 server.listen(PORT, () => {

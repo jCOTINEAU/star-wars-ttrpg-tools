@@ -30,9 +30,16 @@
   let offsetY = 0;
   const ZOOM_STEP = 0.1;
   const PAN_STEP = 200;
+  const LONG_PRESS_MS = 1000; // 1 second hold for attack
+  const DRAG_THRESHOLD = 4;   // px before starting drag cancels long press
 
   function applyView() {
     mapEl.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
+  // Adjust ring stroke so it stays visible at small scales
+  const rings = mapEl.querySelectorAll('.range-ring');
+  const base = 2; // matches CSS base border width
+  const adjusted = Math.min(6, base / scale); // thicker when zoomed out
+  rings.forEach(r => { r.style.borderWidth = adjusted + 'px'; });
   }
 
   function clampScale(v){ return Math.min(2.5, Math.max(0.15, v)); }
@@ -123,6 +130,9 @@
       ring.className = 'range-ring band-'+idx;
       ring.style.width = (r*2)+'px';
       ring.style.height = (r*2)+'px';
+  // Immediate border width set based on current scale
+  const base = 2;
+  ring.style.borderWidth = Math.min(6, base / scale) + 'px';
       container.appendChild(ring);
     });
   }
@@ -131,46 +141,85 @@
   function wireShipEvents(el, id) {
     let dragging = false;
     let dragStart = null;
-    el.addEventListener('mousedown', (e) => {
-      e.stopPropagation();
-      if (e.button !== 0) return;
-      selectShip(id);
-      dragging = true;
-      dragStart = { mx: e.clientX, my: e.clientY };
-      el.classList.add('dragging');
-    });
-    window.addEventListener('mousemove', (e) => {
-      if (!dragging) return;
-      const ship = ships.get(id);
-      const dx = (e.clientX - dragStart.mx) / scale;
-      const dy = (e.clientY - dragStart.my) / scale;
-      dragStart.mx = e.clientX; dragStart.my = e.clientY;
-      ship.x += dx; ship.y += dy;
-      positionShipEl(el, ship);
-    });
-    window.addEventListener('mouseup', () => {
-      if (!dragging) return;
-      dragging = false;
-      el.classList.remove('dragging');
-      const ship = ships.get(id);
-      socket.emit('moveShip', { id, x: ship.x, y: ship.y });
-    });
+    let pressTimer = null;
+    let longPressTriggered = false;
+    let startPos = null;
 
-    // Click to select (handled in mousedown), double-click for attack if another selected
-    el.addEventListener('dblclick', (e) => {
+    const clearTimers = () => {
+      if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
+    };
+
+    function pointerDown(e) {
+      if (e.button !== undefined && e.button !== 0) return; // only left / primary
       e.stopPropagation();
-      const targetId = id;
-      if (selectedShipId === targetId) return; // can't attack self
-      let attackerId = previousSelectedShipId && previousSelectedShipId !== targetId
-        ? previousSelectedShipId
-        : (selectedShipId && selectedShipId !== targetId ? selectedShipId : null);
-      if (!attackerId) return;
-      pendingAttack = { attackerId, targetId };
-      damageInput.value = '0';
-      attackResultBox.textContent = '';
-      attackModal.classList.remove('hidden');
-      damageInput.focus();
-    });
+      longPressTriggered = false;
+      dragging = false;
+      startPos = { x: e.clientX, y: e.clientY };
+      dragStart = { mx: e.clientX, my: e.clientY };
+      // Don't immediately select; wait to see if it's a drag, tap, or long press
+      clearTimers();
+      pressTimer = setTimeout(() => {
+        // Long press path (attack attempt) if attacker selected and target different
+        if (!dragging && selectedShipId && selectedShipId !== id) {
+          longPressTriggered = true;
+          pendingAttack = { attackerId: selectedShipId, targetId: id };
+          damageInput.value = '0';
+          attackResultBox.textContent = '';
+          attackModal.classList.remove('hidden');
+          damageInput.focus();
+        } else if (!dragging) {
+          // Otherwise treat as selecting this ship after long press if no attacker
+          selectShip(id);
+        }
+      }, LONG_PRESS_MS);
+      el.classList.add('pressing');
+    }
+
+    function pointerMove(e) {
+      if (!startPos) return;
+      const dx0 = e.clientX - startPos.x;
+      const dy0 = e.clientY - startPos.y;
+      const distSq = dx0*dx0 + dy0*dy0;
+      if (!dragging && distSq > DRAG_THRESHOLD*DRAG_THRESHOLD) {
+        // Initiate drag: cancel long press, select ship (for move)
+        clearTimers();
+        if (selectedShipId !== id) selectShip(id);
+        dragging = true;
+        el.classList.add('dragging');
+      }
+      if (dragging) {
+        const ship = ships.get(id);
+        const dx = (e.clientX - dragStart.mx) / scale;
+        const dy = (e.clientY - dragStart.my) / scale;
+        dragStart.mx = e.clientX; dragStart.my = e.clientY;
+        ship.x += dx; ship.y += dy;
+        positionShipEl(el, ship);
+      }
+    }
+
+    function pointerUp(e) {
+      if (!startPos) return;
+      clearTimers();
+      el.classList.remove('pressing');
+      if (dragging) {
+        dragging = false;
+        el.classList.remove('dragging');
+        const ship = ships.get(id);
+        socket.emit('moveShip', { id, x: ship.x, y: ship.y });
+      } else if (!longPressTriggered) {
+        // Simple tap selection (no drag, no long press)
+        selectShip(id);
+      }
+      startPos = null;
+    }
+
+    el.addEventListener('mousedown', pointerDown);
+    window.addEventListener('mousemove', pointerMove);
+    window.addEventListener('mouseup', pointerUp);
+    // Touch / stylus support
+    el.addEventListener('touchstart', (e) => pointerDown(e.touches[0]), { passive: true });
+    window.addEventListener('touchmove', (e) => pointerMove(e.touches[0]), { passive: true });
+    window.addEventListener('touchend', pointerUp, { passive: true });
   }
 
   function handleFullState(data) {
