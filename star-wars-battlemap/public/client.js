@@ -42,6 +42,11 @@
   const base = 2; // matches CSS base border width
   const adjusted = Math.min(6, base / scale); // thicker when zoomed out
   rings.forEach(r => { r.style.borderWidth = adjusted + 'px'; });
+    // Keep range labels constant screen size by inverse scaling
+    const labels = mapEl.querySelectorAll('.range-label');
+    labels.forEach(l => {
+      l.style.transform = `translate(-50%, -120%) scale(${1/scale})`;
+    });
   }
 
   function clampScale(v){ return Math.min(2.5, Math.max(0.15, v)); }
@@ -125,6 +130,7 @@
     if (!ship) return;
     const originX = staticRangeOrigin && staticRangeOrigin.shipId === ship.id ? staticRangeOrigin.x : ship.x;
     const originY = staticRangeOrigin && staticRangeOrigin.shipId === ship.id ? staticRangeOrigin.y : ship.y;
+    const labels = ['CLOSE','SHORT','MEDIUM','LONG','EXTREME'];
     (globalRangeBands || []).forEach((r, idx) => {
       const ring = document.createElement('div');
       ring.className = 'range-ring band-'+idx;
@@ -135,6 +141,13 @@
       ring.style.transform = 'translate(-50%, -50%)';
       const base = 2;
       ring.style.borderWidth = Math.min(6, base / scale) + 'px';
+      // Label
+      const label = document.createElement('div');
+      label.className = 'range-label';
+      label.textContent = labels[idx] || '';
+  // Inverse scale so it appears constant size
+  label.style.transform = `translate(-50%, -120%) scale(${1/scale})`;
+      ring.appendChild(label);
       rangeOverlay.appendChild(ring);
     });
   }
