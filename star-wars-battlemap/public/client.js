@@ -34,6 +34,88 @@
   const DRAG_THRESHOLD = 4;   // px before starting drag cancels long press
   const rangeOverlay = document.getElementById('rangeOverlay');
   let staticRangeOrigin = null; // {x,y,shipId}
+  // Starfield
+  let starCtx = null; let stars = null; let starAnimating = false; let starCanvas = null;
+  function initStarfield(width, height) {
+    if (!mapEl) return;
+    if (starCanvas) {
+      // If size changed, adjust
+      if (starCanvas.width !== width || starCanvas.height !== height) {
+        starCanvas.width = width; starCanvas.height = height;
+      }
+      return; // already initialized
+    }
+    starCanvas = document.createElement('canvas');
+    starCanvas.id = 'starfield';
+    starCanvas.width = width; starCanvas.height = height;
+    mapEl.insertBefore(starCanvas, mapEl.firstChild);
+    starCtx = starCanvas.getContext('2d');
+    const starCount = Math.floor((width * height) / 20000); // slightly denser (~600 for 4000x3000)
+    const palette = [
+      '#ffffff', '#cfd9ff', '#ffe6c9', '#ffd2d2', '#d9f1ff', '#fff7e0'
+    ];
+    stars = new Array(starCount).fill(0).map(() => {
+      // Size tiers
+      const tierRand = Math.random();
+      let r, amp, baseA;
+      if (tierRand < 0.78) { // tiny distant
+        r = Math.random()*0.7 + 0.35; baseA = Math.random()*0.35 + 0.10; amp = Math.random()*0.25 + 0.08;
+      } else if (tierRand < 0.95) { // small/medium
+        r = Math.random()*1.2 + 0.8; baseA = Math.random()*0.4 + 0.18; amp = Math.random()*0.35 + 0.15;
+      } else { // rare bright
+        r = Math.random()*1.6 + 1.2; baseA = Math.random()*0.5 + 0.30; amp = Math.random()*0.45 + 0.20;
+      }
+      return {
+        x: Math.random() * width,
+        y: Math.random() * height,
+        r,
+        baseA,
+        amp,
+        phase: Math.random()*Math.PI*2,
+        speed: (Math.random()*0.7 + 0.15),
+        color: palette[Math.floor(Math.random()*palette.length)]
+      };
+    });
+    if (!starAnimating) {
+      starAnimating = true;
+      requestAnimationFrame(starLoop);
+    }
+  }
+
+  function starLoop(ts) {
+    if (!starCtx || !stars) return;
+    starCtx.clearRect(0,0,starCanvas.width, starCanvas.height);
+    // Slight background darken gradient (helps contrast) left subtle
+    // Draw stars
+    for (const s of stars) {
+      const flicker = s.baseA + s.amp * Math.sin(s.phase + ts*0.001*s.speed);
+      const a = Math.max(0, Math.min(1, flicker));
+      // Core
+      starCtx.fillStyle = hexToRgba(s.color, a);
+      starCtx.beginPath();
+      starCtx.arc(s.x, s.y, s.r, 0, Math.PI*2);
+      starCtx.fill();
+      // Soft glow for brighter stars
+      if (s.r > 1.0) {
+        const glowA = a * 0.35;
+        starCtx.fillStyle = hexToRgba(s.color, glowA);
+        starCtx.beginPath();
+        starCtx.arc(s.x, s.y, s.r*2.2, 0, Math.PI*2);
+        starCtx.fill();
+      }
+    }
+    if (starAnimating) requestAnimationFrame(starLoop);
+  }
+
+  function hexToRgba(hex, alpha) {
+    let h = hex.replace('#','');
+    if (h.length === 3) h = h.split('').map(c=>c+c).join('');
+    const num = parseInt(h,16);
+    const r = (num >> 16) & 255;
+    const g = (num >> 8) & 255;
+    const b = num & 255;
+    return `rgba(${r},${g},${b},${alpha})`;
+  }
 
   function applyView() {
     mapEl.style.transform = `translate(${offsetX}px, ${offsetY}px) scale(${scale})`;
@@ -245,6 +327,7 @@
     ships = new Map(data.ships.map(s => [s.id, s]));
     mapEl.style.width = data.map.width + 'px';
     mapEl.style.height = data.map.height + 'px';
+  initStarfield(data.map.width, data.map.height);
     if (data.view) {
       if (typeof data.view.scale === 'number') scale = clampScale(data.view.scale);
       if (typeof data.view.offsetX === 'number') offsetX = data.view.offsetX;
@@ -299,6 +382,16 @@
   document.getElementById('panDown').onclick = () => { offsetY -= PAN_STEP; applyView(); broadcastView(); };
   const undoBtn = document.getElementById('undoMove');
   if (undoBtn) undoBtn.onclick = () => { socket.emit('undoMove'); };
+
+  // Keyboard arrow key panning
+  window.addEventListener('keydown', (e) => {
+    let used = false;
+    if (e.key === 'ArrowLeft') { offsetX += PAN_STEP; used = true; }
+    else if (e.key === 'ArrowRight') { offsetX -= PAN_STEP; used = true; }
+    else if (e.key === 'ArrowUp') { offsetY += PAN_STEP; used = true; }
+    else if (e.key === 'ArrowDown') { offsetY -= PAN_STEP; used = true; }
+    if (used) { applyView(); broadcastView(); e.preventDefault(); }
+  });
 
   // Background click clears selection
   mapEl.addEventListener('mousedown', () => { clearSelection(); });
@@ -413,6 +506,25 @@
         setTimeout(() => { if (shipFormStatus.textContent === 'Saved') shipFormStatus.textContent=''; }, 1500);
       }
     });
+
+    // --- Cursor coordinate overlay ---
+    const coordEl = document.getElementById('cursorCoords');
+    const viewportEl = document.getElementById('viewport');
+    if (coordEl && viewportEl) {
+      function updateCoords(e) {
+        const mapRect = mapEl.getBoundingClientRect();
+        if (e.clientX < mapRect.left || e.clientX > mapRect.right || e.clientY < mapRect.top || e.clientY > mapRect.bottom) {
+          coordEl.classList.add('hidden');
+          return;
+        }
+        const lx = (e.clientX - mapRect.left) / scale;
+        const ly = (e.clientY - mapRect.top) / scale;
+        coordEl.textContent = `${Math.round(lx)} : ${Math.round(ly)}`;
+        coordEl.classList.remove('hidden');
+      }
+      viewportEl.addEventListener('mousemove', updateCoords);
+      viewportEl.addEventListener('mouseleave', () => coordEl.classList.add('hidden'));
+    }
   }
 
 })();
