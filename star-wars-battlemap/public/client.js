@@ -148,6 +148,7 @@
     updateHpBar(el, ship);
     updateSpeed(el, ship);
   applyVisibilityFlags(el, ship);
+  updateShieldArcs(el, ship);
     return el;
   }
 
@@ -173,6 +174,38 @@
     if (!el) return;
     if (ship.showHp) el.setAttribute('data-show-hp', 'true'); else el.removeAttribute('data-show-hp');
     if (ship.showSpeed) el.setAttribute('data-show-speed', 'true'); else el.removeAttribute('data-show-speed');
+    if (ship.showShield) el.setAttribute('data-show-shield', 'true'); else el.removeAttribute('data-show-shield');
+  }
+
+  function shieldIntensityClass(v) {
+    const n = Math.max(0, Math.min(3, Number(v)||0));
+    return 'int-' + n;
+  }
+
+  function updateShieldArcs(el, ship) {
+    // Remove previous
+    const old = el.querySelector('.shield-arcs');
+    if (old) old.remove();
+    if (!ship.showShield) return;
+    const sh = ship.shield;
+    if (!sh || !sh.type || sh.type === 'none') return;
+    const wrap = document.createElement('div');
+    wrap.className = 'shield-arcs';
+    if (sh.type === 'full') {
+      const d = document.createElement('div');
+      d.className = 'shield-arc full ' + shieldIntensityClass(sh.value);
+      wrap.appendChild(d);
+    } else if (sh.type === 'directional') {
+      const dirs = [ ['up','dir-up'], ['right','dir-right'], ['down','dir-down'], ['left','dir-left'] ];
+      dirs.forEach(([key, dirClass]) => {
+        const val = sh[key];
+        if (val == null) return;
+        const d = document.createElement('div');
+        d.className = 'shield-arc quadrant ' + dirClass + ' ' + shieldIntensityClass(val);
+        wrap.appendChild(d);
+      });
+    }
+    el.appendChild(wrap);
   }
 
   function selectShip(id) {
@@ -459,6 +492,19 @@
     shipForm.speed.value = ship.speed ?? 0;
   shipForm.showHp.checked = !!ship.showHp;
   shipForm.showSpeed.checked = !!ship.showSpeed;
+  if (shipForm.showShield) shipForm.showShield.checked = !!ship.showShield;
+    // Shield fields
+    const st = ship.shield?.type || 'none';
+    shipForm.shieldType.value = st;
+    toggleShieldMode(st);
+    if (st === 'full') {
+      shipForm.shieldValue.value = ship.shield?.value ?? 0;
+    } else if (st === 'directional') {
+      shipForm.shieldUp.value = ship.shield?.up ?? 0;
+      shipForm.shieldDown.value = ship.shield?.down ?? 0;
+      shipForm.shieldLeft.value = ship.shield?.left ?? 0;
+      shipForm.shieldRight.value = ship.shield?.right ?? 0;
+    }
     shipFormStatus.textContent = '';
   }
   function hideShipPanel() {
@@ -466,6 +512,15 @@
     shipPanel.classList.add('hidden');
   }
   if (isAdmin) {
+    function toggleShieldMode(mode) {
+      const fullBox = shipForm.querySelector('[data-shield-mode="full"]');
+      const dirBox = shipForm.querySelector('[data-shield-mode="directional"]');
+      if (fullBox) fullBox.style.display = (mode === 'full') ? 'block' : 'none';
+      if (dirBox) dirBox.style.display = (mode === 'directional') ? 'grid' : 'none';
+    }
+    shipForm.shieldType.addEventListener('change', () => {
+      toggleShieldMode(shipForm.shieldType.value);
+    });
     shipForm.addEventListener('submit', (e) => {
       e.preventDefault();
       if (!panelShipId) return;
@@ -476,7 +531,22 @@
         speed: Number(shipForm.speed.value)
   ,showHp: shipForm.showHp.checked
   ,showSpeed: shipForm.showSpeed.checked
+  ,showShield: shipForm.showShield.checked
       };
+      // Shield patch
+      const st = shipForm.shieldType.value;
+      if (st === 'full') {
+  const val = Math.max(0, Math.min(3, Number(shipForm.shieldValue.value)||0));
+  patch.shield = { type: 'full', value: val };
+      } else if (st === 'directional') {
+  const up = Math.max(0, Math.min(3, Number(shipForm.shieldUp.value)||0));
+  const down = Math.max(0, Math.min(3, Number(shipForm.shieldDown.value)||0));
+  const left = Math.max(0, Math.min(3, Number(shipForm.shieldLeft.value)||0));
+  const right = Math.max(0, Math.min(3, Number(shipForm.shieldRight.value)||0));
+  patch.shield = { type: 'directional', up, down, left, right };
+      } else {
+        patch.shield = null;
+      }
       socket.emit('updateShip', { id: panelShipId, patch });
       shipFormStatus.textContent = 'Saving...';
       shipFormStatus.style.color = '#8bc34a';
@@ -497,12 +567,24 @@
           shipForm.speed.value = s.speed ?? 0;
           shipForm.showHp.checked = !!s.showHp;
           shipForm.showSpeed.checked = !!s.showSpeed;
+          if (shipForm.showShield) shipForm.showShield.checked = !!s.showShield;
+          const st2 = s.shield?.type || 'none';
+          shipForm.shieldType.value = st2; toggleShieldMode(st2);
+          if (st2 === 'full') {
+            shipForm.shieldValue.value = s.shield?.value ?? 0;
+          } else if (st2 === 'directional') {
+            shipForm.shieldUp.value = s.shield?.up ?? 0;
+            shipForm.shieldDown.value = s.shield?.down ?? 0;
+            shipForm.shieldLeft.value = s.shield?.left ?? 0;
+            shipForm.shieldRight.value = s.shield?.right ?? 0;
+          }
         }
         if (selectedShipId === s.id) {
           selectedInfo.textContent = `Selected: ${s.name} (HP ${s.hp}/${s.maxHp})`;
         }
   const el = document.getElementById('ship-'+s.id);
         if (el) { updateSpeed(el, s); applyVisibilityFlags(el, s); }
+  if (el) updateShieldArcs(el, s);
         setTimeout(() => { if (shipFormStatus.textContent === 'Saved') shipFormStatus.textContent=''; }, 1500);
       }
     });

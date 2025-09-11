@@ -9,7 +9,8 @@
     "maxHp": 40,
     "speed": 3,
     "showHp": false,
-    "showSpeed": false
+  "showSpeed": false,
+  "shield": { "type": "full", "value": 3 }
   },
   {
     "id": "ship2",
@@ -21,7 +22,8 @@
     "maxHp": 60,
     "speed": 2,
     "showHp": false,
-    "showSpeed": false
+  "showSpeed": false,
+  "shield": { "type": "directional", "up": 2, "down": 1, "left": 2, "right": 2 }
   },
   {
     "id": "ship3",
@@ -33,6 +35,7 @@
     "maxHp": 12,
     "speed": 5,
     "showHp": false,
-    "showSpeed": false
+  "showSpeed": false,
+  "shield": { "type": "full", "value": 1 }
   }
 ]

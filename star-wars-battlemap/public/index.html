@@ -37,11 +37,33 @@
         <label>HP<br><input name="hp" type="number" min="0" /></label>
         <label>Max HP<br><input name="maxHp" type="number" min="0" /></label>
         <label>Speed (0-5)<br><input name="speed" type="number" min="0" max="5" /></label>
+        <fieldset style="border:1px solid #355067;padding:6px 8px;margin:8px 0 10px;">
+          <legend style="padding:0 4px;">Shield</legend>
+          <label style="display:block;margin-bottom:6px;">Type<br>
+            <select name="shieldType" style="width:100%;background:#1c2a37;border:1px solid #355067;color:#cfe8ff;">
+              <option value="none">None</option>
+              <option value="full">Full</option>
+              <option value="directional">Directional</option>
+            </select>
+          </label>
+          <div data-shield-mode="full" style="display:none;">
+            <label>Value<br><input name="shieldValue" type="number" min="0" max="3" step="1" /></label>
+          </div>
+          <div data-shield-mode="directional" style="display:none;display:grid;grid-template-columns:repeat(2,1fr);gap:6px;">
+            <label>Up<br><input name="shieldUp" type="number" min="0" max="3" step="1" /></label>
+            <label>Down<br><input name="shieldDown" type="number" min="0" max="3" step="1" /></label>
+            <label>Left<br><input name="shieldLeft" type="number" min="0" max="3" step="1" /></label>
+            <label>Right<br><input name="shieldRight" type="number" min="0" max="3" step="1" /></label>
+          </div>
+        </fieldset>
         <label style="display:flex;align-items:center;gap:6px;">
           <input name="showHp" type="checkbox" /> Show HP to viewers
         </label>
         <label style="display:flex;align-items:center;gap:6px;">
           <input name="showSpeed" type="checkbox" /> Show Speed to viewers
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;">
+          <input name="showShield" type="checkbox" /> Show Shield arcs
         </label>
         <div class="panel-buttons">
           <button type="submit">Save</button>

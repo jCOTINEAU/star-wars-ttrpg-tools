@@ -1,6 +1,22 @@
 const fs = require('fs');
 const path = require('path');
 
+function normalizeShield(shield) {
+  if (!shield || typeof shield !== 'object') return null;
+  if (shield.type === 'full') {
+  const val = Math.max(0, Math.min(3, Number(shield.value)||0));
+    return { type: 'full', value: val };
+  }
+  if (shield.type === 'directional') {
+  const up = Math.max(0, Math.min(3, Number(shield.up)||0));
+  const down = Math.max(0, Math.min(3, Number(shield.down)||0));
+  const left = Math.max(0, Math.min(3, Number(shield.left)||0));
+  const right = Math.max(0, Math.min(3, Number(shield.right)||0));
+    return { type: 'directional', up, down, left, right };
+  }
+  return null;
+}
+
 // In‑memory authoritative state (single process for now)
 class BattleState {
   constructor() {
@@ -21,7 +37,8 @@ class BattleState {
     const raw = fs.readFileSync(abs, 'utf-8');
     const arr = JSON.parse(raw);
     arr.forEach(s => {
-      this.ships.set(s.id, { speed: 0, showHp: false, showSpeed: false, ...s });
+      const shield = normalizeShield(s.shield);
+  this.ships.set(s.id, { speed: 0, showHp: false, showSpeed: false, showShield: false, ...s, shield });
     });
   }
 
@@ -110,7 +127,7 @@ class BattleState {
   updateShip(id, patch) {
     const ship = this.ships.get(id);
     if (!ship) return { error: 'Not found' };
-  const allowed = ['name','hp','maxHp','speed','x','y','showHp','showSpeed'];
+  const allowed = ['name','hp','maxHp','speed','x','y','showHp','showSpeed','showShield','shield'];
     for (const k of Object.keys(patch)) {
       if (allowed.includes(k) && patch[k] !== undefined) {
         if (k === 'speed') {
@@ -120,7 +137,8 @@ class BattleState {
           ship[k] = after;
         }
         else if (k === 'hp' || k === 'maxHp') ship[k] = Math.max(0, Number(patch[k])||0); // direct edits to hp aren't considered "damage" per requirement
-        else if (k === 'showHp' || k === 'showSpeed') ship[k] = !!patch[k];
+  else if (k === 'showHp' || k === 'showSpeed' || k === 'showShield') ship[k] = !!patch[k];
+        else if (k === 'shield') ship[k] = normalizeShield(patch[k]);
         else ship[k] = patch[k];
       }
     }
