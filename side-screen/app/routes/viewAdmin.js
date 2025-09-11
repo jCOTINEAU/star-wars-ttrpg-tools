@@ -33,21 +33,16 @@ router.get("/", (req, res) => {
           top: 0;
           left: 0;
         }
-        img {
-          max-width: 100%;
-          max-height: 100%;
+        /* Force media to occupy full viewport area; containment handled by object-fit */
+        img, iframe {
+          width: 100%;
+          height: 100%;
           object-fit: contain;
           display: none;
-          cursor: crosshair;
           user-select: none;
         }
-        iframe {
-          width: 100vw;
-          height: 100vh;
-          border: none;
-          display: none;
-          user-select: none;
-        }
+        img { cursor: crosshair; }
+        iframe { border: none; }
         #iframe-overlay {
           position: absolute;
           top: 0;
@@ -151,6 +146,7 @@ router.get("/", (req, res) => {
             <button id="zoom-in" style="background: #2196f3; color: white;">+</button>
           </div>
         </div>
+  <button id="viewport-reset" style="background: #795548; color: white;">Viewport Reset</button>
         <button id="reset-overlay" style="background: #f44336; color: white;">Réinitialiser</button>
       </div>
 
@@ -170,15 +166,16 @@ router.get("/", (req, res) => {
         const zoomInBtn = document.getElementById('zoom-in');
         const zoomOutBtn = document.getElementById('zoom-out');
         const zoomResetBtn = document.getElementById('zoom-reset');
+  const viewportResetBtn = document.getElementById('viewport-reset');
 
-        let isDrawing = false;
-        let brushSize = 30;
-        let overlayVisible = false;
+  let isDrawing = false;
+  let brushSize = 30;
+  let overlayVisible = false;
   let currentZoom = 1;
-  let zoomOriginX = 0.5; // 0.5 = center
+  let zoomOriginX = 0.5; // normalized transform origin
   let zoomOriginY = 0.5;
-  // Store strokes normalized to base canvas (viewport) size so wrapper scaling keeps alignment
-  // Each area: { nx, ny, rBase }
+  // Store strokes normalized to viewport: { vx, vy, vr }
+  // vx, vy in [0,1], vr = radius / viewportWidth (pre-scale)
   let localRevealedAreas = [];
 
         // Update brush size display
@@ -242,8 +239,9 @@ router.get("/", (req, res) => {
         });
 
         function resizeCanvas() {
-          overlayCanvas.width = window.innerWidth;
-          overlayCanvas.height = window.innerHeight;
+          // Use wrapper dimensions (base viewport) not global window to avoid drift.
+          overlayCanvas.width = wrapper.clientWidth;
+          overlayCanvas.height = wrapper.clientHeight;
           repaintOverlay();
         }
 
@@ -266,10 +264,22 @@ router.get("/", (req, res) => {
         }
 
         function applyArea(area) {
-          const x = area.nx * overlayCanvas.width;
-          const y = area.ny * overlayCanvas.height;
-          const radius = area.rBase; // scales visually via wrapper zoom
-          revealAreaAbsolute(x, y, radius);
+          // Support new format {vx,vy,vr} and legacy variants
+          let vx, vy, vr;
+          if (area.vx !== undefined) {
+            vx = area.vx; vy = area.vy; vr = area.vr;
+          } else if (area.nx !== undefined) { // previous temp format
+            vx = area.nx; vy = area.ny; vr = area.rBase / overlayCanvas.width; // approximate conversion
+          } else if (area.relX !== undefined) { // older
+            vx = area.relX; vy = area.relY; vr = area.relRadius; 
+          } else if (area.x !== undefined) { // absolute legacy
+            vx = area.x / overlayCanvas.width; vy = area.y / overlayCanvas.height; vr = area.radius / overlayCanvas.width;
+          }
+          if (vx === undefined) return;
+            const x = vx * overlayCanvas.width;
+            const y = vy * overlayCanvas.height;
+            const radius = vr * overlayCanvas.width;
+            revealAreaAbsolute(x, y, radius);
         }
 
         function repaintOverlay() {
@@ -307,10 +317,12 @@ router.get("/", (req, res) => {
         function drawBrush(e) {
           const rect = overlayCanvas.getBoundingClientRect();
           if (rect.width === 0) return;
-          const nx = (e.clientX - rect.left) / rect.width;
-          const ny = (e.clientY - rect.top) / rect.height;
-          const rBase = (brushSize / 2) / currentZoom; // constant on-screen size while painting
-          const area = { nx, ny, rBase };
+          // Normalize inside viewport
+          const vx = (e.clientX - rect.left) / rect.width;
+          const vy = (e.clientY - rect.top) / rect.height;
+          const rPixel = (brushSize / 2) / currentZoom; // keep constant on-screen size
+          const vr = rPixel / overlayCanvas.width;
+          const area = { vx, vy, vr };
           localRevealedAreas.push(area);
           applyArea(area);
           socket.emit('revealArea', area);
@@ -348,25 +360,49 @@ router.get("/", (req, res) => {
           }, 1500);
         }
 
-        // Universal click handler for pings (works on any content when not revealing)
-        document.addEventListener('click', (e) => {
-          // Only ping if we're not in the middle of drawing/revealing
-          if (!isDrawing) {
-            const hasVisibleImage = img.style.display !== 'none';
-            const hasVisibleIframe = iframe.style.display !== 'none';
-            
-            if (hasVisibleImage || hasVisibleIframe) {
-              const x = e.clientX;
-              const y = e.clientY;
-              createPing(x, y);
-              socket.emit('ping', { x, y });
-            }
-          }
+        // Ping only when clicking inside active content (image/iframe) within viewport
+        wrapper.addEventListener('click', (e) => {
+          if (isDrawing) return;
+          const activeEl = img.style.display !== 'none' ? img : (iframe.style.display !== 'none' ? iframe : null);
+          if (!activeEl) return;
+          const rect = activeEl.getBoundingClientRect();
+          // Ignore clicks outside the actual content (letterboxing areas)
+          if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) return;
+          if (!rect.width || !rect.height) return;
+          const vx = (e.clientX - rect.left) / rect.width;
+          const vy = (e.clientY - rect.top) / rect.height;
+          createPing(e.clientX, e.clientY);
+          socket.emit('ping', { vx, vy });
         });
 
         // Socket events
         socket.on('ping', (data) => {
-          createPing(data.x, data.y);
+          const activeEl = img.style.display !== 'none' ? img : (iframe.style.display !== 'none' ? iframe : null);
+          if (!activeEl) return;
+          const rect = activeEl.getBoundingClientRect();
+          if (data && data.vx !== undefined) {
+            const x = rect.left + data.vx * rect.width;
+            const y = rect.top + data.vy * rect.height;
+            createPing(x, y);
+          } else if (data && data.x !== undefined) { // legacy absolute fallback
+            createPing(data.x, data.y);
+          }
+        });
+
+        // --- Viewport synchronization (admin mimics display dimensions) ---
+        socket.emit('getBaseViewport');
+        socket.on('baseViewport', (vp) => {
+          if (!vp || !vp.width || !vp.height) return;
+          // Force body and wrapper to match display viewport so coordinates align
+          document.body.style.width = vp.width + 'px';
+          document.body.style.height = vp.height + 'px';
+          wrapper.style.width = vp.width + 'px';
+          wrapper.style.height = vp.height + 'px';
+          resizeCanvas();
+        });
+
+        viewportResetBtn.addEventListener('click', () => {
+          socket.emit('resetBaseViewport');
         });
 
   socket.on('overlayToggle', (data) => {
@@ -375,10 +411,10 @@ router.get("/", (req, res) => {
             overlayCanvas.classList.add('hide-mode');
             overlayCanvas.classList.add('revealing');
             localRevealedAreas = data.revealedAreas.map(a => {
-              if (a.nx !== undefined) return a;
-              if (a.wx !== undefined) return { nx: a.wx, ny: a.wy, rBase: a.wr * overlayCanvas.width };
-              if (a.relX !== undefined) return { nx: a.relX, ny: a.relY, rBase: a.relRadius * overlayCanvas.width };
-              if (a.x !== undefined) return { nx: a.x / overlayCanvas.width, ny: a.y / overlayCanvas.height, rBase: a.radius };
+              if (a.vx !== undefined) return a;
+              if (a.nx !== undefined) return { vx: a.nx, vy: a.ny, vr: a.rBase / overlayCanvas.width };
+              if (a.relX !== undefined) return { vx: a.relX, vy: a.relY, vr: a.relRadius };
+              if (a.x !== undefined) return { vx: a.x / overlayCanvas.width, vy: a.y / overlayCanvas.height, vr: a.radius / overlayCanvas.width };
               return a;
             });
             resizeCanvas();
@@ -393,8 +429,11 @@ router.get("/", (req, res) => {
   socket.on('revealArea', (data) => {
           if (!overlayVisible) return;
           let area = data;
-          if (data.wx !== undefined) area = { nx: data.wx, ny: data.wy, rBase: data.wr * overlayCanvas.width };
-          else if (data.relX !== undefined) area = { nx: data.relX, ny: data.relY, rBase: data.relRadius * overlayCanvas.width };
+          if (data.vx === undefined) {
+            if (data.nx !== undefined) area = { vx: data.nx, vy: data.ny, vr: data.rBase / overlayCanvas.width };
+            else if (data.relX !== undefined) area = { vx: data.relX, vy: data.relY, vr: data.relRadius };
+            else if (data.x !== undefined) area = { vx: data.x / overlayCanvas.width, vy: data.y / overlayCanvas.height, vr: data.radius / overlayCanvas.width };
+          }
           localRevealedAreas.push(area);
           applyArea(area);
         });
@@ -409,7 +448,7 @@ router.get("/", (req, res) => {
           zoomDisplay.textContent = Math.round(data.scale * 100);
         });
 
-        socket.on('show', data => {
+  socket.on('show', data => {
           if (!data) {
             img.style.display = "none";
             iframe.style.display = "none";
@@ -434,6 +473,7 @@ router.get("/", (req, res) => {
             // Hide iframe overlay for image content
             iframeOverlay.style.display = "none";
           }
+          // (Pending ping queue removed in revert)
         });
 
         // Initialize

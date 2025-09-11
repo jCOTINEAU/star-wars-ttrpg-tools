@@ -16,9 +16,38 @@ function handleSockets(io) {
     });
 
     socket.on("ping", (data) => {
-      // Broadcast ping to all other clients (not the sender)
+      // Prefer normalized viewport coords {vx,vy}; still relay legacy absolute {x,y}
       socket.broadcast.emit("ping", data);
-      console.log(`📍 Ping envoyé aux autres clients: x=${data.x}, y=${data.y}`);
+      if (data && data.vx !== undefined) {
+        console.log(`📍 Ping (norm) vx=${data.vx.toFixed(3)}, vy=${data.vy.toFixed(3)}`);
+      } else {
+        console.log(`📍 Ping (legacy) x=${data.x}, y=${data.y}`);
+      }
+    });
+
+    // --- Viewport synchronization ---
+    // Keep a base viewport (first display that connects defines it unless reset logic added)
+    if (!handleSockets.baseViewport) handleSockets.baseViewport = null;
+
+    socket.on('displayViewport', (vp) => {
+      if (!vp || !vp.width || !vp.height) return;
+      if (!handleSockets.baseViewport) {
+        handleSockets.baseViewport = { width: vp.width, height: vp.height };
+        io.emit('baseViewport', handleSockets.baseViewport);
+        console.log(`�️ Base viewport définie: ${vp.width}x${vp.height}`);
+      }
+    });
+
+    socket.on('getBaseViewport', () => {
+      if (handleSockets.baseViewport) {
+        socket.emit('baseViewport', handleSockets.baseViewport);
+      }
+    });
+
+    socket.on('resetBaseViewport', () => {
+      handleSockets.baseViewport = null;
+      console.log('🔄 Base viewport reset demandé. Requête aux displays.');
+      io.emit('requestViewport');
     });
 
     socket.on("revealArea", (data) => {

@@ -32,21 +32,15 @@ router.get("/", (req, res) => {
           width: 100%;
           height: 100%;
         }
-        img {
+        img, iframe {
           width: 100%;
           height: 100%;
           object-fit: contain;
           display: none;
-          cursor: crosshair;
           user-select: none;
         }
-        iframe {
-          border: none;
-          display: none;
-          user-select: none;
-          width: 100%;
-          height: 100%;
-        }
+        img { cursor: crosshair; }
+        iframe { border: none; }
         #overlay-canvas {
           position: absolute;
           top: 0;
@@ -99,15 +93,16 @@ router.get("/", (req, res) => {
         const overlayCanvas = document.getElementById('overlay-canvas');
         const ctx = overlayCanvas.getContext('2d');
 
-        let overlayVisible = false;
-  let localRevealedAreas = [];
+  let overlayVisible = false;
+  let localRevealedAreas = []; // {vx,vy,vr}
   let currentZoom = 1;
   let zoomOriginX = 0.5;
   let zoomOriginY = 0.5;
 
         function resizeCanvas() {
-          overlayCanvas.width = window.innerWidth;
-          overlayCanvas.height = window.innerHeight;
+          // Keep canvas tied to wrapper base dimensions for consistent coordinate mapping
+          overlayCanvas.width = wrapper.clientWidth;
+          overlayCanvas.height = wrapper.clientHeight;
           if (overlayVisible) repaintOverlay();
         }
 
@@ -128,12 +123,18 @@ router.get("/", (req, res) => {
           ctx.globalCompositeOperation = 'source-over';
         }
 
-  function getContentRect() { return overlayCanvas.getBoundingClientRect(); }
+        function getContentRect() { return overlayCanvas.getBoundingClientRect(); }
 
         function applyArea(area) {
-          const x = area.nx * overlayCanvas.width;
-          const y = area.ny * overlayCanvas.height;
-          const radius = area.rBase; // wrapper scaling applies
+          let vx, vy, vr;
+          if (area.vx !== undefined) { vx = area.vx; vy = area.vy; vr = area.vr; }
+          else if (area.nx !== undefined) { vx = area.nx; vy = area.ny; vr = area.rBase / overlayCanvas.width; }
+          else if (area.relX !== undefined) { vx = area.relX; vy = area.relY; vr = area.relRadius; }
+          else if (area.x !== undefined) { vx = area.x / overlayCanvas.width; vy = area.y / overlayCanvas.height; vr = area.radius / overlayCanvas.width; }
+          if (vx === undefined) return;
+          const x = vx * overlayCanvas.width;
+          const y = vy * overlayCanvas.height;
+          const radius = vr * overlayCanvas.width;
           revealAreaAbsolute(x, y, radius);
         }
 
@@ -160,37 +161,53 @@ router.get("/", (req, res) => {
           }, 1500);
         }
 
-        // Universal click handler for pings (works on any content)
-        document.addEventListener('click', (e) => {
-          // Check if we have visible content (image or iframe)
-          const hasVisibleImage = img.style.display !== 'none';
-          const hasVisibleIframe = iframe.style.display !== 'none';
-          
-          if (hasVisibleImage || hasVisibleIframe) {
-            const x = e.clientX;
-            const y = e.clientY;
-            
-            // Create ping locally
+        // Ping only inside active content element
+        wrapper.addEventListener('click', (e) => {
+          const activeEl = img.style.display !== 'none' ? img : (iframe.style.display !== 'none' ? iframe : null);
+          if (!activeEl) return;
+          const rect = activeEl.getBoundingClientRect();
+          if (e.clientX < rect.left || e.clientX > rect.right || e.clientY < rect.top || e.clientY > rect.bottom) return;
+          if (!rect.width || !rect.height) return;
+          const vx = (e.clientX - rect.left) / rect.width;
+          const vy = (e.clientY - rect.top) / rect.height;
+          createPing(e.clientX, e.clientY);
+          socket.emit('ping', { vx, vy });
+        });
+
+        // Listen for pings from other clients (normalized)
+        socket.on('ping', (data) => {
+          const activeEl = img.style.display !== 'none' ? img : (iframe.style.display !== 'none' ? iframe : null);
+          if (!activeEl) return;
+          const rect = activeEl.getBoundingClientRect();
+          if (data && data.vx !== undefined) {
+            const x = rect.left + data.vx * rect.width;
+            const y = rect.top + data.vy * rect.height;
             createPing(x, y);
-            
-            // Send ping to other clients
-            socket.emit('ping', { x, y });
+          } else if (data && data.x !== undefined) {
+            createPing(data.x, data.y); // legacy
           }
         });
 
-        // Listen for pings from other clients
-        socket.on('ping', (data) => {
-          createPing(data.x, data.y);
+        // --- Report viewport to server so admin can mimic dimensions ---
+        function reportViewport() {
+          socket.emit('displayViewport', { width: window.innerWidth, height: window.innerHeight });
+        }
+        window.addEventListener('load', reportViewport);
+        let resizeTO;
+        window.addEventListener('resize', () => {
+          clearTimeout(resizeTO);
+          resizeTO = setTimeout(reportViewport, 200);
         });
+  socket.on('requestViewport', () => { reportViewport(); });
 
         // Listen for overlay events
         socket.on('overlayToggle', (data) => {
           overlayVisible = data.hidden;
           localRevealedAreas = data.revealedAreas.map(a => {
-            if (a.nx !== undefined) return a;
-            if (a.wx !== undefined) return { nx: a.wx, ny: a.wy, rBase: a.wr * overlayCanvas.width };
-            if (a.relX !== undefined) return { nx: a.relX, ny: a.relY, rBase: a.relRadius * overlayCanvas.width };
-            if (a.x !== undefined) return { nx: a.x / overlayCanvas.width, ny: a.y / overlayCanvas.height, rBase: a.radius };
+            if (a.vx !== undefined) return a;
+            if (a.nx !== undefined) return { vx: a.nx, vy: a.ny, vr: a.rBase / overlayCanvas.width };
+            if (a.relX !== undefined) return { vx: a.relX, vy: a.relY, vr: a.relRadius };
+            if (a.x !== undefined) return { vx: a.x / overlayCanvas.width, vy: a.y / overlayCanvas.height, vr: a.radius / overlayCanvas.width };
             return a;
           });
           resizeCanvas();
@@ -199,8 +216,11 @@ router.get("/", (req, res) => {
         socket.on('revealArea', (data) => {
           if (!overlayVisible) return;
           let area = data;
-          if (data.wx !== undefined) area = { nx: data.wx, ny: data.wy, rBase: data.wr * overlayCanvas.width };
-          else if (data.relX !== undefined) area = { nx: data.relX, ny: data.relY, rBase: data.relRadius * overlayCanvas.width };
+          if (data.vx === undefined) {
+            if (data.nx !== undefined) area = { vx: data.nx, vy: data.ny, vr: data.rBase / overlayCanvas.width };
+            else if (data.relX !== undefined) area = { vx: data.relX, vy: data.relY, vr: data.relRadius };
+            else if (data.x !== undefined) area = { vx: data.x / overlayCanvas.width, vy: data.y / overlayCanvas.height, vr: data.radius / overlayCanvas.width };
+          }
           localRevealedAreas.push(area);
           applyArea(area);
         });
@@ -214,7 +234,7 @@ router.get("/", (req, res) => {
           wrapper.style.transform = 'scale(' + currentZoom + ')';
         });
 
-        socket.on('show', data => {
+  socket.on('show', data => {
           if (!data) {
             img.style.display = "none";
             iframe.style.display = "none";
@@ -234,6 +254,7 @@ router.get("/", (req, res) => {
             img.src = '/media/' + data;
             img.style.display = "block";
           }
+          // (Pending ping queue removed in revert)
         });
 
         // Initialize canvas and get current state
