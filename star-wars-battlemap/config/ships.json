@@ -1,0 +1,38 @@
+[
+  {
+    "id": "ship1",
+    "name": "CR-90 Corvette",
+    "icon": "corvette",
+    "x": 1000,
+    "y": 1200,
+    "hp": 40,
+    "maxHp": 40,
+    "speed": 3,
+    "showHp": false,
+    "showSpeed": false
+  },
+  {
+    "id": "ship2",
+    "name": "Nebulon-B Frigate",
+    "icon": "frigate",
+    "x": 1800,
+    "y": 900,
+    "hp": 60,
+    "maxHp": 60,
+    "speed": 2,
+    "showHp": false,
+    "showSpeed": false
+  },
+  {
+    "id": "ship3",
+    "name": "TIE Squadron",
+    "icon": "fighter",
+    "x": 2300,
+    "y": 1600,
+    "hp": 12,
+    "maxHp": 12,
+    "speed": 5,
+    "showHp": false,
+    "showSpeed": false
+  }
+]

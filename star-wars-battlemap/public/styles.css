@@ -1,0 +1,47 @@
+* { box-sizing: border-box; }
+body { margin:0; font-family: system-ui, sans-serif; background:#060a10; color:#d6e4f5; }
+.viewer .ship:not([data-show-hp="true"]) .hpbar { display:none !important; }
+.top-bar { position:fixed; top:0; left:0; right:0; background:#111d2a; padding:6px 10px; z-index:100; font-size:14px; }
+.controls button { margin:0 2px; background:#1f2f40; color:#cfe8ff; border:1px solid #355067; padding:4px 8px; cursor:pointer; }
+.controls button:hover { background:#28455c; }
+.controls .sep { display:inline-block; width:1px; height:16px; background:#355067; margin:0 6px; vertical-align:middle; }
+#viewport { position:fixed; top:40px; left:0; right:0; bottom:0; overflow:hidden; background:radial-gradient(circle at 50% 50%, #0d1722 0%, #05080c 80%); }
+#map { position:absolute; width:4000px; height:3000px; background-image: repeating-linear-gradient(0deg, rgba(255,255,255,0.05) 0 1px, transparent 1px 100px), repeating-linear-gradient(90deg, rgba(255,255,255,0.05) 0 1px, transparent 1px 100px); background-size:100px 100px; transform-origin: 0 0; }
+
+/* Side panel */
+.side-panel { position:fixed; top:48px; left:0; width:230px; bottom:0; background:#0f1b25; border-right:1px solid #355067; padding:10px 12px 14px; overflow-y:auto; z-index:90; font-size:13px; }
+.side-panel.hidden { display:none; }
+.side-panel h3 { margin:4px 0 10px; font-size:15px; }
+.side-panel form label { display:block; margin-bottom:10px; }
+.side-panel input { width:100%; padding:4px 6px; background:#1c2a37; border:1px solid #355067; color:#cfe8ff; }
+.side-panel input:focus { outline:1px solid #4d89c6; }
+.panel-buttons { display:flex; gap:8px; margin-top:4px; }
+.panel-buttons button { flex:1; background:#1f2f40; color:#cfe8ff; border:1px solid #355067; padding:6px 4px; cursor:pointer; }
+.panel-buttons button:hover { background:#28455c; }
+.status { margin-top:8px; min-height:16px; font-family:monospace; color:#8bc34a; }
+.viewer .side-panel { display:none !important; }
+
+.ship { position:absolute; width:64px; height:64px; transform: translate(-50%, -50%); cursor:grab; user-select:none; }
+.ship.dragging { cursor:grabbing; }
+.ship .icon { width:100%; height:100%; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px; text-align:center; padding:4px; font-weight:600; }
+.icon.corvette { background:#2c4b9c; border:2px solid #6da0ff; }
+.icon.frigate { background:#7a3146; border:2px solid #ff8ca8; }
+.icon.fighter { background:#2f6d3a; border:2px solid #7dff9b; }
+.ship .hpbar { position:absolute; bottom:-8px; left:50%; transform:translateX(-50%); width:70px; height:6px; background:#222; border:1px solid #555; }
+.ship .hpbar .hp { height:100%; background:#3df969; transition:width .2s; }
+.ship .speed { position:absolute; bottom:-22px; left:50%; transform:translateX(-50%); font-size:11px; font-family:monospace; letter-spacing:1px; color:#ccc; opacity:0.9; }
+.viewer .ship:not([data-show-speed="true"]) .speed { display:none !important; }
+.ship.selected .icon { box-shadow:0 0 8px 4px #ffd43d; }
+
+.range-rings { position:absolute; top:50%; left:50%; transform: translate(-50%, -50%); pointer-events:none; }
+.range-ring { position:absolute; border:1px dashed rgba(255,255,255,0.25); border-radius:50%; transform: translate(-50%, -50%); }
+.range-ring.band-0 { border-color: #4caf50; }
+.range-ring.band-1 { border-color: #8bc34a; }
+.range-ring.band-2 { border-color: #ffc107; }
+.range-ring.band-3 { border-color: #ff9800; }
+.range-ring.band-4 { border-color: #f44336; }
+
+.modal { position:fixed; inset:0; background:rgba(0,0,0,0.55); display:flex; align-items:center; justify-content:center; }
+.modal.hidden { display:none; }
+.modal-content { background:#162532; padding:20px 24px; border:1px solid #355067; width:300px; }
+#attackDetails { font-family:monospace; margin:10px 0 16px; }

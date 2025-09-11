@@ -10,8 +10,8 @@ services:
       - "3000:3000"  # or whatever port your app exposes
     restart: unless-stopped
     volumes:
-      - /Users/isacotineau/Documents/Jeremy/Logseq-jc-jdr/assets:/app/media
-      #- /Users/jeremy.cotineau/Desktop:/app/media 
+      #- /Users/isacotineau/Documents/Jeremy/Logseq-jc-jdr/assets:/app/media
+      - /Users/jeremy.cotineau/Desktop:/app/media 
 
   star-wars-intro:
     build:
@@ -39,3 +39,15 @@ services:
     ports:
       - "3002:3000"  # adjust based on your app
     restart: unless-stopped
+
+  star-wars-battlemap:
+    build:
+      context: ./star-wars-battlemap
+      dockerfile: Dockerfile
+    container_name: star-wars-battlemap
+    ports:
+      - "3010:3010"
+    restart: unless-stopped
+    # Mount config for easy tweaking without rebuild (optional)
+    volumes:
+      - ./star-wars-battlemap/config:/app/config:ro

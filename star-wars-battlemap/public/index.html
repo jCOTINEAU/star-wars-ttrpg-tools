@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Starship Battlemap</title>
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <link rel="stylesheet" href="/assets/styles.css" />
+</head>
+<body>
+  <header class="top-bar">
+    <div class="controls">
+      <button id="zoomIn" title="Zoom In">＋</button>
+      <button id="zoomOut" title="Zoom Out">－</button>
+      <button id="resetView" title="Reset View">⟳</button>
+      <span class="sep"></span>
+      <button id="panUp" title="Pan Up">▲</button>
+      <button id="panLeft" title="Pan Left">◀</button>
+      <button id="panRight" title="Pan Right">▶</button>
+      <button id="panDown" title="Pan Down">▼</button>
+      <span class="sep"></span>
+      <span id="selectedInfo">No selection</span>
+    </div>
+  </header>
+
+  <div id="viewport">
+    <div id="map" class="map-layer">
+      <!-- Ships injected here -->
+    </div>
+    <aside id="shipPanel" class="side-panel hidden">
+      <h3>Ship</h3>
+      <form id="shipForm">
+        <label>Name<br><input name="name" type="text" /></label>
+        <label>HP<br><input name="hp" type="number" min="0" /></label>
+        <label>Max HP<br><input name="maxHp" type="number" min="0" /></label>
+        <label>Speed (0-5)<br><input name="speed" type="number" min="0" max="5" /></label>
+        <label style="display:flex;align-items:center;gap:6px;">
+          <input name="showHp" type="checkbox" /> Show HP to viewers
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;">
+          <input name="showSpeed" type="checkbox" /> Show Speed to viewers
+        </label>
+        <div class="panel-buttons">
+          <button type="submit">Save</button>
+          <button type="button" id="closePanel">Close</button>
+        </div>
+        <div id="shipFormStatus" class="status"></div>
+      </form>
+    </aside>
+  </div>
+
+  <div id="attackModal" class="modal hidden">
+    <div class="modal-content">
+      <h2>Resolve Attack</h2>
+      <div id="attackPrompt">Enter damage dealt:</div>
+      <form id="attackForm">
+        <input type="number" id="damageInput" min="0" step="1" value="0" style="width:100%;padding:6px;margin:8px 0 12px;" />
+        <div style="display:flex; gap:8px; justify-content:flex-end;">
+          <button type="button" id="cancelAttack">Cancel</button>
+          <button type="submit">Apply</button>
+        </div>
+      </form>
+      <div id="attackResult" style="margin-top:10px; font-family:monospace;"></div>
+    </div>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="/assets/client.js"></script>
+</body>
+</html>
