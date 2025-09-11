@@ -38,7 +38,8 @@ class BattleState {
     const arr = JSON.parse(raw);
     arr.forEach(s => {
       const shield = normalizeShield(s.shield);
-  this.ships.set(s.id, { speed: 0, showHp: false, showSpeed: false, showShield: false, ...s, shield });
+    const silhouette = clampSilhouette(s.silhouette);
+  this.ships.set(s.id, { speed: 0, showHp: false, showSpeed: false, showShield: false, silhouette, ...s, shield });
     });
   }
 
@@ -127,7 +128,7 @@ class BattleState {
   updateShip(id, patch) {
     const ship = this.ships.get(id);
     if (!ship) return { error: 'Not found' };
-  const allowed = ['name','hp','maxHp','speed','x','y','showHp','showSpeed','showShield','shield'];
+  const allowed = ['name','hp','maxHp','speed','x','y','showHp','showSpeed','showShield','shield','silhouette'];
     for (const k of Object.keys(patch)) {
       if (allowed.includes(k) && patch[k] !== undefined) {
         if (k === 'speed') {
@@ -138,7 +139,8 @@ class BattleState {
         }
         else if (k === 'hp' || k === 'maxHp') ship[k] = Math.max(0, Number(patch[k])||0); // direct edits to hp aren't considered "damage" per requirement
   else if (k === 'showHp' || k === 'showSpeed' || k === 'showShield') ship[k] = !!patch[k];
-        else if (k === 'shield') ship[k] = normalizeShield(patch[k]);
+  else if (k === 'shield') ship[k] = normalizeShield(patch[k]);
+  else if (k === 'silhouette') ship[k] = clampSilhouette(patch[k]);
         else ship[k] = patch[k];
       }
     }
@@ -153,3 +155,9 @@ class BattleState {
 }
 
 module.exports = BattleState;
+
+function clampSilhouette(v) {
+  const n = Math.round(Number(v));
+  if (!Number.isFinite(n)) return 3;
+  return Math.min(10, Math.max(3, n));
+}

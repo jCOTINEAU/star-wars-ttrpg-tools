@@ -145,6 +145,7 @@
       wireShipEvents(el, ship.id);
     }
     positionShipEl(el, ship);
+  applySilhouette(el, ship);
     updateHpBar(el, ship);
     updateSpeed(el, ship);
   applyVisibilityFlags(el, ship);
@@ -175,6 +176,22 @@
     if (ship.showHp) el.setAttribute('data-show-hp', 'true'); else el.removeAttribute('data-show-hp');
     if (ship.showSpeed) el.setAttribute('data-show-speed', 'true'); else el.removeAttribute('data-show-speed');
     if (ship.showShield) el.setAttribute('data-show-shield', 'true'); else el.removeAttribute('data-show-shield');
+    if (ship.silhouette) el.setAttribute('data-silhouette', ship.silhouette);
+  }
+
+  const SIL_TABLE = { 3:{w:1,h:1},4:{w:1,h:1},5:{w:2,h:1},6:{w:2,h:1},7:{w:3,h:2},8:{w:4,h:2},9:{w:5,h:2},10:{w:6,h:3} };
+  function applySilhouette(el, ship) {
+    const s = SIL_TABLE[ship.silhouette] || SIL_TABLE[3];
+    const base = 64; // px per square
+    const wpx = s.w * base;
+    const hpx = s.h * base;
+    el.style.width = wpx + 'px';
+    el.style.height = hpx + 'px';
+    const hpBar = el.querySelector('.hpbar');
+    if (hpBar) {
+      const target = Math.max(50, Math.min(350, wpx - 4));
+      hpBar.style.width = target + 'px';
+    }
   }
 
   function shieldIntensityClass(v) {
@@ -490,6 +507,7 @@
     shipForm.hp.value = ship.hp;
     shipForm.maxHp.value = ship.maxHp;
     shipForm.speed.value = ship.speed ?? 0;
+  if (shipForm.silhouette) shipForm.silhouette.value = ship.silhouette || 3;
   shipForm.showHp.checked = !!ship.showHp;
   shipForm.showSpeed.checked = !!ship.showSpeed;
   if (shipForm.showShield) shipForm.showShield.checked = !!ship.showShield;
@@ -532,6 +550,7 @@
   ,showHp: shipForm.showHp.checked
   ,showSpeed: shipForm.showSpeed.checked
   ,showShield: shipForm.showShield.checked
+  ,silhouette: Number(shipForm.silhouette.value)||3
       };
       // Shield patch
       const st = shipForm.shieldType.value;
@@ -568,6 +587,7 @@
           shipForm.showHp.checked = !!s.showHp;
           shipForm.showSpeed.checked = !!s.showSpeed;
           if (shipForm.showShield) shipForm.showShield.checked = !!s.showShield;
+          if (shipForm.silhouette) shipForm.silhouette.value = s.silhouette || 3;
           const st2 = s.shield?.type || 'none';
           shipForm.shieldType.value = st2; toggleShieldMode(st2);
           if (st2 === 'full') {
@@ -584,6 +604,7 @@
         }
   const el = document.getElementById('ship-'+s.id);
         if (el) { updateSpeed(el, s); applyVisibilityFlags(el, s); }
+  if (el) applySilhouette(el, s);
   if (el) updateShieldArcs(el, s);
         setTimeout(() => { if (shipFormStatus.textContent === 'Saved') shipFormStatus.textContent=''; }, 1500);
       }
