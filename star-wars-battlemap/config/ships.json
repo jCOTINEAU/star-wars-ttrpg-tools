@@ -9,6 +9,7 @@
     "maxHp": 40,
     "speed": 3,
     "silhouette": 7,
+  "heading": 0,
     "showHp": false,
     "showSpeed": false,
     "shield": { "type": "full", "value": 3 }
@@ -23,6 +24,7 @@
     "maxHp": 60,
     "speed": 2,
     "silhouette": 8,
+  "heading": 45,
     "showHp": false,
     "showSpeed": false,
     "shield": { "type": "directional", "up": 2, "down": 1, "left": 2, "right": 2 }
@@ -37,6 +39,7 @@
     "maxHp": 12,
     "speed": 5,
     "silhouette": 3,
+  "heading": 180,
     "showHp": false,
     "showSpeed": false,
     "shield": { "type": "full", "value": 1 }

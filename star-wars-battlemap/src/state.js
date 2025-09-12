@@ -39,7 +39,8 @@ class BattleState {
     arr.forEach(s => {
       const shield = normalizeShield(s.shield);
     const silhouette = clampSilhouette(s.silhouette);
-  this.ships.set(s.id, { speed: 0, showHp: false, showSpeed: false, showShield: false, silhouette, ...s, shield });
+    const heading = clampHeading(s.heading);
+  this.ships.set(s.id, { speed: 0, showHp: false, showSpeed: false, showShield: false, silhouette, heading, ...s, shield });
     });
   }
 
@@ -128,7 +129,7 @@ class BattleState {
   updateShip(id, patch) {
     const ship = this.ships.get(id);
     if (!ship) return { error: 'Not found' };
-  const allowed = ['name','hp','maxHp','speed','x','y','showHp','showSpeed','showShield','shield','silhouette'];
+  const allowed = ['name','hp','maxHp','speed','x','y','showHp','showSpeed','showShield','shield','silhouette','heading'];
     for (const k of Object.keys(patch)) {
       if (allowed.includes(k) && patch[k] !== undefined) {
         if (k === 'speed') {
@@ -141,6 +142,7 @@ class BattleState {
   else if (k === 'showHp' || k === 'showSpeed' || k === 'showShield') ship[k] = !!patch[k];
   else if (k === 'shield') ship[k] = normalizeShield(patch[k]);
   else if (k === 'silhouette') ship[k] = clampSilhouette(patch[k]);
+  else if (k === 'heading') ship[k] = clampHeading(patch[k]);
         else ship[k] = patch[k];
       }
     }
@@ -160,4 +162,12 @@ function clampSilhouette(v) {
   const n = Math.round(Number(v));
   if (!Number.isFinite(n)) return 3;
   return Math.min(10, Math.max(3, n));
+}
+
+function clampHeading(v) {
+  let n = Number(v);
+  if (!Number.isFinite(n)) return 0;
+  n = n % 360;
+  if (n < 0) n += 360;
+  return Math.round(n * 1000)/1000; // keep fractional if ever needed
 }

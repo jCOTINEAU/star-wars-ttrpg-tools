@@ -140,12 +140,24 @@
       el = document.createElement('div');
       el.id = 'ship-'+ship.id;
       el.className = 'ship';
-      el.innerHTML = `<div class="icon ${ship.icon}" title="${ship.name}">${ship.name}</div>` +
+      el.innerHTML = `<div class="rot">`+
+        `<div class="icon ${ship.icon}" title="${ship.name}">${ship.name}</div>` +
         `<div class="hpbar"><div class="hp"></div></div>` +
         `<div class="speed"></div>` +
-        `<div class="range-rings"></div>`;
+        `<div class="range-rings"></div>`+
+      `</div>`;
       mapEl.appendChild(el);
       wireShipEvents(el, ship.id);
+      const arrow = document.createElement('div');
+      arrow.className = 'facing-arrow';
+      const rotWrap = el.querySelector('.rot');
+      (rotWrap||el).appendChild(arrow);
+    }
+    else {
+      // Ensure arrow lives inside rotating wrapper for legacy nodes
+      const rotWrap = el.querySelector('.rot');
+      const arrow = el.querySelector('.facing-arrow');
+      if (rotWrap && arrow && arrow.parentElement !== rotWrap) rotWrap.appendChild(arrow);
     }
     positionShipEl(el, ship);
   applySilhouette(el, ship);
@@ -153,6 +165,7 @@
     updateSpeed(el, ship);
   applyVisibilityFlags(el, ship);
   updateShieldArcs(el, ship);
+    updateHeading(el, ship);
     return el;
   }
 
@@ -180,6 +193,7 @@
     if (ship.showSpeed) el.setAttribute('data-show-speed', 'true'); else el.removeAttribute('data-show-speed');
     if (ship.showShield) el.setAttribute('data-show-shield', 'true'); else el.removeAttribute('data-show-shield');
     if (ship.silhouette) el.setAttribute('data-silhouette', ship.silhouette);
+  if (typeof ship.heading === 'number') el.setAttribute('data-heading', ship.heading);
   }
 
   const SIL_TABLE = { 3:{w:1,h:1},4:{w:1,h:1},5:{w:2,h:1},6:{w:2,h:1},7:{w:3,h:2},8:{w:4,h:2},9:{w:5,h:2},10:{w:6,h:3} };
@@ -197,6 +211,14 @@
     }
   }
 
+  function updateHeading(el, ship) {
+    if (!el) return;
+    const rot = el.querySelector('.rot');
+    if (rot && typeof ship.heading === 'number') {
+      rot.style.transform = `rotate(${ship.heading}deg)`;
+    }
+  }
+
   function shieldIntensityClass(v) {
     const n = Math.max(0, Math.min(3, Number(v)||0));
     return 'int-' + n;
@@ -204,7 +226,8 @@
 
   function updateShieldArcs(el, ship) {
     // Remove previous
-    const old = el.querySelector('.shield-arcs');
+    const container = el.querySelector('.rot') || el;
+    const old = container.querySelector('.shield-arcs');
     const signature = ship.showShield ? JSON.stringify(ship.shield) : 'none';
     if (old && old.getAttribute('data-sig') === signature) return; // no change
     if (old) old.remove();
@@ -228,7 +251,7 @@
         wrap.appendChild(d);
       });
     }
-    el.appendChild(wrap);
+    container.appendChild(wrap);
   }
 
   function selectShip(id) {
@@ -402,6 +425,7 @@
       renderRangeRings(el, ship);
       selectedInfo.textContent = `Selected: ${ship.name} (HP ${ship.hp}/${ship.maxHp})`;
     }
+  updateHeading(el, ship);
   });
   socket.on('attackResult', (res) => {
     if (res.error) return;
@@ -441,6 +465,22 @@
 
   // Keyboard arrow key panning
   window.addEventListener('keydown', (e) => {
+    const ROT_STEP = 15; // degrees per key press
+    if (selectedShipId && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+      const ship = ships.get(selectedShipId);
+      if (ship) {
+        let heading = ship.heading || 0;
+        heading += (e.key === 'ArrowLeft' ? -ROT_STEP : ROT_STEP);
+        heading = (heading % 360 + 360) % 360;
+        ship.heading = heading; // optimistic update
+        const el = document.getElementById('ship-'+ship.id);
+        updateHeading(el, ship);
+        socket.emit('updateShip', { id: ship.id, patch: { heading } });
+        e.preventDefault();
+      }
+      return;
+    }
+    // Panning when no rotation triggered (or no selection)
     let used = false;
     if (e.key === 'ArrowLeft') { offsetX += PAN_STEP; used = true; }
     else if (e.key === 'ArrowRight') { offsetX -= PAN_STEP; used = true; }
