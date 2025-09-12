@@ -43,6 +43,9 @@ body { margin:0; font-family: system-ui, sans-serif; background:#060a10; color:#
 .shield-arc { position:absolute; width:140%; height:140%; top:50%; left:50%; transform:translate(-50%, -50%); border-radius:50%; box-sizing:border-box; mix-blend-mode:screen; opacity:0.85; filter:blur(1px); }
 .shield-arc.quadrant { clip-path:polygon(50% 50%, 0% 0%, 100% 0%); } /* Up default shape, rotated for others */
 .shield-arc.full { border:2px solid rgba(120,200,255,0.4); box-shadow:0 0 10px 4px rgba(90,170,255,0.3) inset, 0 0 18px 6px rgba(90,170,255,0.25); }
+.shield-arc.simple { box-shadow:none !important; filter:none !important; mix-blend-mode:normal !important; opacity:0.55 !important; border:2px solid rgba(120,200,255,0.35) !important; }
+body.perf .shield-arc { box-shadow:none !important; filter:none !important; mix-blend-mode:normal !important; }
+body.perf #starfield { display:none !important; }
 .shield-arc.int-0 { filter:opacity(.15) blur(1px); }
 .shield-arc.int-1 { box-shadow:0 0 6px 2px rgba(90,170,255,0.35), 0 0 14px 4px rgba(90,170,255,0.25) inset; }
 .shield-arc.int-2 { box-shadow:0 0 10px 3px rgba(90,170,255,0.55), 0 0 22px 6px rgba(90,170,255,0.35) inset; }

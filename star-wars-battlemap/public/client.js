@@ -3,7 +3,9 @@
   const socket = io();
   const query = new URLSearchParams(location.search);
   const isAdmin = query.get('admin') === 'true';
+  const perfMode = query.get('perf') === '1';
   if (!isAdmin) document.body.classList.add('viewer');
+  if (perfMode) document.body.classList.add('perf');
   const mapEl = document.getElementById('map');
   const selectedInfo = document.getElementById('selectedInfo');
   const attackModal = document.getElementById('attackModal');
@@ -37,6 +39,7 @@
   // Starfield
   let starCtx = null; let stars = null; let starAnimating = false; let starCanvas = null;
   function initStarfield(width, height) {
+  if (perfMode) return; // disabled in performance mode
     if (!mapEl) return;
     if (starCanvas) {
       // If size changed, adjust
@@ -202,15 +205,18 @@
   function updateShieldArcs(el, ship) {
     // Remove previous
     const old = el.querySelector('.shield-arcs');
+    const signature = ship.showShield ? JSON.stringify(ship.shield) : 'none';
+    if (old && old.getAttribute('data-sig') === signature) return; // no change
     if (old) old.remove();
     if (!ship.showShield) return;
     const sh = ship.shield;
     if (!sh || !sh.type || sh.type === 'none') return;
     const wrap = document.createElement('div');
     wrap.className = 'shield-arcs';
+    wrap.setAttribute('data-sig', signature);
     if (sh.type === 'full') {
       const d = document.createElement('div');
-      d.className = 'shield-arc full ' + shieldIntensityClass(sh.value);
+      d.className = 'shield-arc full ' + shieldIntensityClass(sh.value) + (perfMode ? ' simple' : '');
       wrap.appendChild(d);
     } else if (sh.type === 'directional') {
       const dirs = [ ['up','dir-up'], ['right','dir-right'], ['down','dir-down'], ['left','dir-left'] ];
@@ -218,7 +224,7 @@
         const val = sh[key];
         if (val == null) return;
         const d = document.createElement('div');
-        d.className = 'shield-arc quadrant ' + dirClass + ' ' + shieldIntensityClass(val);
+        d.className = 'shield-arc quadrant ' + dirClass + ' ' + shieldIntensityClass(val) + (perfMode ? ' simple' : '');
         wrap.appendChild(d);
       });
     }
@@ -377,7 +383,7 @@
     ships = new Map(data.ships.map(s => [s.id, s]));
     mapEl.style.width = data.map.width + 'px';
     mapEl.style.height = data.map.height + 'px';
-  initStarfield(data.map.width, data.map.height);
+  if (!perfMode) initStarfield(data.map.width, data.map.height);
     if (data.view) {
       if (typeof data.view.scale === 'number') scale = clampScale(data.view.scale);
       if (typeof data.view.offsetX === 'number') offsetX = data.view.offsetX;
