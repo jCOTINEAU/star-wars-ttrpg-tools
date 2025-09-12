@@ -204,6 +204,29 @@
     const hpx = s.h * base;
     el.style.width = wpx + 'px';
     el.style.height = hpx + 'px';
+    // Adjust directional shield depths so short edges project less
+    // Depth as percentage of the perpendicular dimension
+    const baseDepthPct = 32; // depth for long edges
+    const shortDepth = 18;    // reduced depth for short edges
+    if (wpx > hpx) {
+      // Wider: top/bottom edges are the long edges (width); left/right are short
+      el.style.setProperty('--shield-depth-up', baseDepthPct + '%');
+      el.style.setProperty('--shield-depth-down', baseDepthPct + '%');
+      el.style.setProperty('--shield-depth-left', shortDepth + '%');
+      el.style.setProperty('--shield-depth-right', shortDepth + '%');
+    } else if (hpx > wpx) {
+      // Taller: left/right edges are the long edges (height); top/bottom are short
+      el.style.setProperty('--shield-depth-left', baseDepthPct + '%');
+      el.style.setProperty('--shield-depth-right', baseDepthPct + '%');
+      el.style.setProperty('--shield-depth-up', shortDepth + '%');
+      el.style.setProperty('--shield-depth-down', shortDepth + '%');
+    } else {
+      // Square
+      el.style.setProperty('--shield-depth-up', baseDepthPct + '%');
+      el.style.setProperty('--shield-depth-down', baseDepthPct + '%');
+      el.style.setProperty('--shield-depth-left', baseDepthPct + '%');
+      el.style.setProperty('--shield-depth-right', baseDepthPct + '%');
+    }
     const hpBar = el.querySelector('.hpbar');
     if (hpBar) {
       const target = Math.max(50, Math.min(350, wpx - 4));
@@ -238,16 +261,20 @@
     wrap.className = 'shield-arcs';
     wrap.setAttribute('data-sig', signature);
     if (sh.type === 'full') {
-      const d = document.createElement('div');
-      d.className = 'shield-arc full ' + shieldIntensityClass(sh.value) + (perfMode ? ' simple' : '');
-      wrap.appendChild(d);
+      if (Number(sh.value) > 0) {
+        const d = document.createElement('div');
+        d.className = 'shield-arc full ' + shieldIntensityClass(sh.value) + (perfMode ? ' simple' : '');
+        wrap.appendChild(d);
+      }
     } else if (sh.type === 'directional') {
-      const dirs = [ ['up','dir-up'], ['right','dir-right'], ['down','dir-down'], ['left','dir-left'] ];
+      // Mapping: arrow points to the screen-right side => front=right semicircle
+      // Clockwise order starting from front (right): front (right edge), right (bottom), back (left edge), left (top)
+      const dirs = [ ['front','dir-right'], ['right','dir-down'], ['back','dir-left'], ['left','dir-up'] ];
       dirs.forEach(([key, dirClass]) => {
         const val = sh[key];
-        if (val == null) return;
+        if (val == null || Number(val) <= 0) return; // skip zero/absent
         const d = document.createElement('div');
-        d.className = 'shield-arc quadrant ' + dirClass + ' ' + shieldIntensityClass(val) + (perfMode ? ' simple' : '');
+        d.className = 'shield-arc ' + dirClass + ' ' + shieldIntensityClass(val) + (perfMode ? ' simple' : '');
         wrap.appendChild(d);
       });
     }
@@ -564,8 +591,8 @@
     if (st === 'full') {
       shipForm.shieldValue.value = ship.shield?.value ?? 0;
     } else if (st === 'directional') {
-      shipForm.shieldUp.value = ship.shield?.up ?? 0;
-      shipForm.shieldDown.value = ship.shield?.down ?? 0;
+      shipForm.shieldFront.value = ship.shield?.front ?? ship.shield?.up ?? 0;
+      shipForm.shieldBack.value = ship.shield?.back ?? ship.shield?.down ?? 0;
       shipForm.shieldLeft.value = ship.shield?.left ?? 0;
       shipForm.shieldRight.value = ship.shield?.right ?? 0;
     }
@@ -603,12 +630,12 @@
       if (st === 'full') {
   const val = Math.max(0, Math.min(3, Number(shipForm.shieldValue.value)||0));
   patch.shield = { type: 'full', value: val };
-      } else if (st === 'directional') {
-  const up = Math.max(0, Math.min(3, Number(shipForm.shieldUp.value)||0));
-  const down = Math.max(0, Math.min(3, Number(shipForm.shieldDown.value)||0));
+    } else if (st === 'directional') {
+  const front = Math.max(0, Math.min(3, Number(shipForm.shieldFront.value)||0));
+  const back = Math.max(0, Math.min(3, Number(shipForm.shieldBack.value)||0));
   const left = Math.max(0, Math.min(3, Number(shipForm.shieldLeft.value)||0));
   const right = Math.max(0, Math.min(3, Number(shipForm.shieldRight.value)||0));
-  patch.shield = { type: 'directional', up, down, left, right };
+  patch.shield = { type: 'directional', front, back, left, right };
       } else {
         patch.shield = null;
       }
@@ -639,8 +666,8 @@
           if (st2 === 'full') {
             shipForm.shieldValue.value = s.shield?.value ?? 0;
           } else if (st2 === 'directional') {
-            shipForm.shieldUp.value = s.shield?.up ?? 0;
-            shipForm.shieldDown.value = s.shield?.down ?? 0;
+            shipForm.shieldFront.value = s.shield?.front ?? s.shield?.up ?? 0;
+            shipForm.shieldBack.value = s.shield?.back ?? s.shield?.down ?? 0;
             shipForm.shieldLeft.value = s.shield?.left ?? 0;
             shipForm.shieldRight.value = s.shield?.right ?? 0;
           }

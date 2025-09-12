@@ -8,11 +8,14 @@ function normalizeShield(shield) {
     return { type: 'full', value: val };
   }
   if (shield.type === 'directional') {
-  const up = Math.max(0, Math.min(3, Number(shield.up)||0));
-  const down = Math.max(0, Math.min(3, Number(shield.down)||0));
+  // Accept new front/back plus legacy up/down for backward compatibility
+  const frontRaw = shield.front != null ? shield.front : shield.up;
+  const backRaw = shield.back != null ? shield.back : shield.down;
+  const front = Math.max(0, Math.min(3, Number(frontRaw)||0));
+  const back = Math.max(0, Math.min(3, Number(backRaw)||0));
   const left = Math.max(0, Math.min(3, Number(shield.left)||0));
   const right = Math.max(0, Math.min(3, Number(shield.right)||0));
-    return { type: 'directional', up, down, left, right };
+  return { type: 'directional', front, back, left, right };
   }
   return null;
 }
