@@ -44,4 +44,20 @@
     "showSpeed": false,
   "shield": { "type": "bilateral", "front": 1, "back": 1 }
   }
+  ,
+  {
+    "id": "ship4",
+    "name": "Lambda Shuttle",
+    "icon": "shuttle",
+    "x": 1500,
+    "y": 1500,
+    "hp": 24,
+    "maxHp": 24,
+    "speed": 3,
+    "silhouette": 4,
+    "heading": 315,
+    "showHp": false,
+    "showSpeed": false,
+    "shield": { "type": "bilateral", "front": 2, "back": 1 }
+  }
 ]

@@ -26,10 +26,56 @@ body { margin:0; font-family: system-ui, sans-serif; background:#060a10; color:#
 
 .ship { position:absolute; width:64px; height:64px; transform: translate(-50%, -50%); cursor:grab; user-select:none; }
 .ship.dragging { cursor:grabbing; }
-.ship .icon { width:100%; height:100%; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px; text-align:center; padding:4px; font-weight:600; }
-.icon.corvette { background:#2c4b9c; border:2px solid #6da0ff; }
-.icon.frigate { background:#7a3146; border:2px solid #ff8ca8; }
-.icon.fighter { background:#2f6d3a; border:2px solid #7dff9b; }
+.ship .icon { position:relative; width:100%; height:100%; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:12px; text-align:center; padding:0; font-weight:600; overflow:hidden; }
+.ship .icon .label { position:absolute; inset:auto 2px 2px 2px; font-size:11px; background:rgba(0,0,0,0.35); padding:1px 3px; border-radius:3px; pointer-events:none; backdrop-filter:blur(2px); }
+/* External small-ship name (placed outside icon to not obscure SVG) */
+.ship .ship-name { position:absolute; left:50%; transform:translateX(-50%); bottom:-8px; font-size:11px; font-weight:600; background:rgba(0,0,0,0.35); padding:1px 4px; border-radius:3px; pointer-events:none; backdrop-filter:blur(2px); white-space:nowrap; }
+/* Reposition hp bar & speed further down for small silhouettes so name sits directly under icon */
+.ship[data-silhouette="3"] .hpbar, .ship[data-silhouette="4"] .hpbar { bottom:-22px; }
+.ship[data-silhouette="3"] .speed, .ship[data-silhouette="4"] .speed { bottom:-36px; }
+/* Color themes applied to strokes/fills via CSS variables for consistency */
+.icon { --c-base:#2c4b9c; --c-accent:#6da0ff; --c-panel:#203563; --c-glow:rgba(145,200,255,0.55); --hull-base:var(--c-base); --hull-accent:var(--c-accent); --hull-panel:var(--c-panel); --hull-panel-a:color-mix(in srgb,var(--c-base) 85%,#ffffff); --hull-panel-b:color-mix(in srgb,var(--c-base) 65%,#000000); --hull-highlight:#cfe8ff; --hull-window:#bfe5ff; --hull-weapon:#303845; --engine-core:#ffe9b5; --engine-glow:#ffb347; }
+.icon.frigate { --c-base:#7a3146; --c-accent:#ff8ca8; --c-panel:#552331; --c-glow:rgba(255,140,168,0.5); --hull-panel-a:color-mix(in srgb,#7a3146 80%,#ffffff); --hull-panel-b:color-mix(in srgb,#7a3146 55%,#000); --hull-highlight:#ffd6e2; --hull-window:#ffe4ef; --hull-weapon:#45202c; --engine-core:#ffe2f1; --engine-glow:#ff7eb8; }
+.icon.fighter { --c-base:#2f6d3a; --c-accent:#7dff9b; --c-panel:#214d29; --c-glow:rgba(125,255,155,0.5); --hull-panel-a:color-mix(in srgb,#2f6d3a 80%,#ffffff); --hull-panel-b:color-mix(in srgb,#2f6d3a 55%,#000); --hull-highlight:#d2ffe0; --hull-window:#e3fff1; --hull-weapon:#1a3e22; --engine-core:#d9fff0; --engine-glow:#7dffcf; }
+.icon.corvette { --c-base:#2c4b9c; --c-accent:#6da0ff; --c-panel:#203563; --c-glow:rgba(145,200,255,0.55); --hull-panel-a:color-mix(in srgb,#2c4b9c 80%,#ffffff); --hull-panel-b:color-mix(in srgb,#2c4b9c 55%,#000); --hull-highlight:#d8edff; --hull-window:#cfe3ff; --hull-weapon:#1c283d; --engine-core:#fff0d1; --engine-glow:#ffcf66; }
+/* Shuttle palette (reuse frigate/fighter pink palette) */
+.icon.shuttle { --c-base:#7a3146; --c-accent:#ff8ca8; --c-panel:#552331; --c-glow:rgba(255,140,168,0.5); --hull-base:var(--c-base); --hull-accent:var(--c-accent); --hull-panel:var(--c-panel); --hull-panel-a:color-mix(in srgb,#7a3146 80%,#ffffff); --hull-panel-b:color-mix(in srgb,#7a3146 55%,#000); --hull-highlight:#ffd6e2; --hull-window:#ffe4ef; --hull-weapon:#45202c; --engine-core:#ffe2f1; --engine-glow:#ff7eb8; }
+
+/* Background subtle gradient */
+.ship .icon { background:linear-gradient(135deg, rgba(255,255,255,0.05), rgba(0,0,0,0.4)), #0f1923; border:2px solid var(--c-accent); box-shadow:0 0 6px 2px var(--c-glow) inset, 0 0 8px -2px var(--c-accent); }
+.ship.selected .icon { box-shadow:0 0 8px 4px #ffd43d, 0 0 12px 2px var(--c-accent) inset; }
+
+/* SVG styling */
+.ship-svg { width:100%; height:100%; display:block; }
+.ship-svg .hull .primary { fill:var(--hull-base); stroke:var(--hull-accent); }
+.ship-svg .hull .deck { fill:linear-gradient(135deg, rgba(255,255,255,0.15), rgba(0,0,0,0.35)); stroke:var(--hull-accent); }
+.ship-svg .hull .sensor { fill:var(--hull-accent); stroke:#ffffff; }
+.ship-svg .hull .detail { stroke:rgba(255,255,255,0.28); }
+.ship-svg .hull .panel { fill:var(--hull-panel); stroke:var(--hull-accent); }
+.ship-svg .hull .panel-a { fill:var(--hull-panel-a); stroke:var(--hull-accent); }
+.ship-svg .hull .panel-b { fill:var(--hull-panel-b); stroke:var(--hull-accent); }
+.ship-svg .hull .shadow { fill:rgba(0,0,0,0.35); mix-blend-mode:multiply; }
+.ship-svg .hull .window { fill:var(--hull-window); stroke:#fff; stroke-width:.8; paint-order:stroke fill; }
+.ship-svg .hull .weapon { fill:var(--hull-weapon); stroke:var(--hull-highlight); stroke-width:1; }
+.ship-svg .hull .strut { fill:var(--hull-base); stroke:var(--hull-accent); }
+.ship-svg .hull .cockpit { fill:#1e2430; stroke:var(--hull-highlight); stroke-width:2.5; }
+.ship-svg .hull .bridge { fill:#20304a; stroke:var(--hull-accent); }
+.ship-svg .hull .engine { fill:#142033; stroke:var(--hull-accent); }
+.ship-svg .plating { fill:rgba(255,255,255,0.08); mix-blend-mode:overlay; }
+/* Rotate fighter sprite 90deg clockwise so strut becomes vertical (base facing right still handled by arrow) */
+.icon.fighter .ship-svg { transform:rotate(90deg); transform-origin:50% 50%; }
+body.perf .icon.fighter .ship-svg { transform:rotate(90deg); }
+/* Rotate shuttle 90deg as requested */
+.icon.shuttle .ship-svg { transform:rotate(90deg); transform-origin:50% 50%; }
+body.perf .icon.shuttle .ship-svg { transform:rotate(90deg); }
+.ship-svg .highlight { stroke:var(--hull-highlight); stroke-width:1.5; stroke-linecap:round; opacity:0.75; }
+.ship-svg .engine-core { fill:var(--engine-core); filter:brightness(1.2) contrast(1.1); }
+.ship-svg .engine-glow { fill:var(--engine-glow); opacity:0.85; filter:blur(4px) brightness(1.4); transform-origin:center; animation:enginePulse 2.2s ease-in-out infinite; }
+@keyframes enginePulse { 0%,100% { opacity:0.55; } 50% { opacity:0.95; } }
+.ship-svg path.primary, .ship-svg polygon.primary { vector-effect:non-scaling-stroke; }
+
+/* Slight glow on hover (admin only) */
+body:not(.viewer) .ship .icon:hover { filter:brightness(1.15); }
 .ship .hpbar { position:absolute; bottom:-8px; left:50%; transform:translateX(-50%); width:70px; height:6px; background:#222; border:1px solid #555; }
 .ship .hpbar .hp { height:100%; background:#3df969; transition:width .2s; }
 .ship .speed { position:absolute; bottom:-22px; left:50%; transform:translateX(-50%); font-size:11px; font-family:monospace; letter-spacing:1px; color:#ccc; opacity:0.9; }
@@ -84,6 +130,28 @@ body.perf .shield-arc { border-width:1px !important; }
 body.perf .shield-arc.int-3 { border-width:2px !important; box-shadow:none !important; }
 body.perf .range-ring { border-width:1px !important; opacity:0.6; }
 body.perf .range-ring .range-label { font-size:14px; padding:2px 6px; }
+/* Extra perf reductions: flatten visuals */
+body.perf .ship .icon { box-shadow:none !important; background:#111 !important; border:1px solid #444 !important; }
+body.perf .ship-svg * { filter:none !important; mix-blend-mode:normal !important; }
+body.perf .ship-svg .engine-glow { opacity:0.45 !important; }
+/* In perf mode completely hide engine glow circles and extra plating layers */
+body.perf .ship-svg .engine-glow, body.perf .ship-svg .plating { display:none !important; }
+/* Remove box-shadows and complex gradients from shields and icons */
+body.perf .ship .icon { box-shadow:none !important; background:#151515 !important; }
+body.perf .shield-arc { box-shadow:none !important; background:rgba(120,180,255,0.12) !important; border-style:solid !important; }
+body.perf .shield-arc.int-2, body.perf .shield-arc.int-3, body.perf .shield-arc.int-4 { border-width:2px !important; }
+body.perf .shield-arc.int-1 { border-width:1px !important; }
+body.perf .ship.selected .icon { box-shadow:0 0 4px 2px #ffd43d !important; }
+/* Simplify range rings */
+body.perf .range-ring { border-style:solid !important; border-color:rgba(255,255,255,0.35) !important; }
+/* Remove map inner glows */
+body.perf #map { box-shadow:none !important; }
+body.perf .ship-svg .highlight { stroke-width:1 !important; }
+body.perf .ship-svg .engine-core { stroke-width:0.5 !important; }
+body.perf .ship-svg .weapon, body.perf .ship-svg .window { stroke-width:0.5 !important; }
+body.perf .ship-svg .engine-glow, body.perf .ship-svg .plating { animation:none !important; }
+body.perf .ship .hpbar .hp { transition:none !important; }
+body.perf .ship { --shield-depth:18% !important; --shield-depth-up:18% !important; --shield-depth-down:18% !important; --shield-depth-left:18% !important; --shield-depth-right:18% !important; }
 
 .range-rings { position:absolute; top:50%; left:50%; transform: translate(-50%, -50%); pointer-events:none; }
 .range-ring { position:absolute; border:2px dashed rgba(255,255,255,0.28); border-radius:50%; transform: translate(-50%, -50%); }

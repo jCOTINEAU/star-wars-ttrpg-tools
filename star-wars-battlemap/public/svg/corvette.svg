@@ -1,0 +1,32 @@
+<svg viewBox="0 0 160 60" xmlns="http://www.w3.org/2000/svg">
+  <title>Corvette</title>
+  <g class="hull" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <g class="body">
+      <path d="M20 2 L140 2 Q158 30 140 58 L20 58 Q2 30 20 2 Z" class="primary" fill="#2c4b9c" stroke="#6da0ff" />
+      <rect x="116" y="14" width="20" height="20" rx="3" ry="3" class="bridge" fill="#20304a" stroke="#6da0ff" />
+      <path d="M40 8 H112 L118 14 H34 Z" class="panel-a" fill="#355d9e" stroke="#6da0ff" />
+      <path d="M42 52 H114 L108 46 H48 Z" class="panel-b" fill="#27426f" stroke="#6da0ff" />
+      <rect x="96" y="18" width="8" height="8" class="window" fill="#cfe3ff" stroke="#ffffff" stroke-width="0.9" />
+      <rect x="96" y="34" width="8" height="8" class="window" fill="#cfe3ff" stroke="#ffffff" stroke-width="0.9" />
+    </g>
+    <g class="engines">
+      <circle cx="14" cy="18" r="9" class="engine-glow" fill="#ffcf66" opacity="0.75" />
+      <circle cx="14" cy="30" r="9" class="engine-glow" fill="#ffcf66" opacity="0.75" />
+      <circle cx="14" cy="42" r="9" class="engine-glow" fill="#ffcf66" opacity="0.75" />
+      <circle cx="26" cy="24" r="8" class="engine-glow" fill="#ffcf66" opacity="0.75" />
+      <circle cx="26" cy="36" r="8" class="engine-glow" fill="#ffcf66" opacity="0.75" />
+      <circle cx="14" cy="18" r="5" class="engine-core" fill="#fff0d1" stroke="#ffffff" stroke-width="1" />
+      <circle cx="14" cy="30" r="5" class="engine-core" fill="#fff0d1" stroke="#ffffff" stroke-width="1" />
+      <circle cx="14" cy="42" r="5" class="engine-core" fill="#fff0d1" stroke="#ffffff" stroke-width="1" />
+      <circle cx="26" cy="24" r="4" class="engine-core" fill="#fff0d1" stroke="#ffffff" stroke-width="1" />
+      <circle cx="26" cy="36" r="4" class="engine-core" fill="#fff0d1" stroke="#ffffff" stroke-width="1" />
+    </g>
+    <g class="panel-lines" stroke="#d8edff">
+      <path d="M40 8 L112 8" class="highlight" stroke="#d8edff" />
+      <path d="M42 52 L114 52" class="highlight" stroke="#d8edff" />
+      <path d="M40 30 L138 30" class="highlight" stroke="#d8edff" />
+      <rect x="74" y="24" width="10" height="12" class="weapon" fill="#1c283d" stroke="#d8edff" stroke-width="1" />
+      <rect x="86" y="24" width="10" height="12" class="weapon" fill="#1c283d" stroke="#d8edff" stroke-width="1" />
+    </g>
+  </g>
+</svg>

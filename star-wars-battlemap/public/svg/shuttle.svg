@@ -1,0 +1,38 @@
+<svg viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg">
+  <title>Shuttle Top View</title>
+  <!-- Top-down stylized shuttle with partial swept wings: original geometry (non-infringing) -->
+  <g class="hull" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <!-- Main rear hull rectangle (narrower) -->
+    <rect x="46" y="48" width="48" height="50" class="primary" fill="#7a3146" stroke="#ff8ca8" />
+    <!-- Narrower neck forward -->
+    <rect x="61" y="34" width="18" height="14" class="panel-a" fill="#8d3a52" stroke="#ff8ca8" />
+    <!-- Forward cockpit block now tapering narrower toward front (inverted from previous) -->
+    <polygon points="61,34 79,34 76,20 64,20" class="panel-b" fill="#612838" stroke="#ff8ca8" />
+    <!-- Dorsal fin centerline (retained) -->
+    <rect x="68" y="20" width="4" height="78" class="strut" fill="#7a3146" stroke="#ff8ca8" />
+    <!-- Enlarged partially swept wings -->
+    <polygon points="46,60 20,76 14,94 46,84" class="panel-b wing" fill="#552331" stroke="#ff8ca8" />
+    <polygon points="94,60 120,76 126,94 94,84" class="panel-b wing" fill="#552331" stroke="#ff8ca8" />
+    <!-- Engines (3) at stern -->
+    <g class="engines">
+      <circle cx="58" cy="102" r="7" class="engine-glow" fill="#ff7eb8" opacity="0.55" />
+      <circle cx="70" cy="102" r="7" class="engine-glow" fill="#ff7eb8" opacity="0.55" />
+      <circle cx="82" cy="102" r="7" class="engine-glow" fill="#ff7eb8" opacity="0.55" />
+      <circle cx="58" cy="102" r="3.5" class="engine-core" fill="#ffe2f1" stroke="#ffffff" stroke-width="0.8" />
+      <circle cx="70" cy="102" r="3.5" class="engine-core" fill="#ffe2f1" stroke="#ffffff" stroke-width="0.8" />
+      <circle cx="82" cy="102" r="3.5" class="engine-core" fill="#ffe2f1" stroke="#ffffff" stroke-width="0.8" />
+    </g>
+    <!-- Stepped cockpit windows adjusted to new taper -->
+    <rect x="63" y="27" width="14" height="5" rx="1" class="window" fill="#ffe4ef" stroke="#ffffff" stroke-width="0.7" />
+    <rect x="65" y="22" width="10" height="4" rx="1" class="window" fill="#ffe4ef" stroke="#ffffff" stroke-width="0.7" />
+    <!-- Panel lines / maintenance markings updated to new hull width -->
+    <g class="panel-lines" stroke="#ffd6e2" stroke-width="1" opacity="0.75">
+      <line x1="46" y1="58" x2="94" y2="58" />
+      <line x1="46" y1="74" x2="94" y2="74" />
+      <line x1="46" y1="90" x2="94" y2="90" />
+      <line x1="61" y1="34" x2="79" y2="34" />
+      <line x1="62" y1="48" x2="62" y2="98" />
+      <line x1="78" y1="48" x2="78" y2="98" />
+    </g>
+  </g>
+</svg>

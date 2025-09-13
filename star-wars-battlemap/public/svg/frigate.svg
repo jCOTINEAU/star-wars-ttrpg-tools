@@ -1,0 +1,27 @@
+<svg viewBox="0 0 150 80" xmlns="http://www.w3.org/2000/svg">
+  <title>Frigate</title>
+  <g class="hull" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <g class="main">
+      <polygon points="0,10 0,70 140,40" class="primary" fill="#7a3146" stroke="#ff8ca8" />
+      <rect x="0" y="24" width="40" height="32" class="deck" fill="#5a2738" stroke="#ff8ca8" />
+      <polygon points="20,24 24,24 24,56 20,56" class="panel-a" fill="#8d3a52" stroke="#ff8ca8" />
+      <polygon points="8,24 12,24 12,56 8,56" class="panel-b" fill="#612838" stroke="#ff8ca8" />
+    </g>
+    <g class="sensors">
+      <circle cx="16" cy="24" r="6" class="sensor" fill="#ff8ca8" stroke="#ffffff" />
+      <circle cx="28" cy="24" r="5" class="sensor" fill="#ff8ca8" stroke="#ffffff" />
+    </g>
+    <g class="details" stroke="#ff8ca8" >
+      <line x1="12" y1="24" x2="12" y2="56" class="detail" stroke="#ffb0c4" />
+      <line x1="24" y1="24" x2="24" y2="56" class="detail" stroke="#ffb0c4" />
+      <path d="M5 40 L135 40" class="highlight" stroke="#ffd6e2" />
+      <circle cx="8" cy="40" r="14" class="engine-glow" fill="#ff7eb8" opacity="0.75" />
+      <circle cx="8" cy="40" r="6" class="engine-core" fill="#ffe2f1" stroke="#ffffff" stroke-width="1" />
+      <rect x="4" y="30" width="6" height="4" class="window" fill="#ffe4ef" stroke="#ffffff" stroke-width="0.8" />
+      <rect x="4" y="46" width="6" height="4" class="window" fill="#ffe4ef" stroke="#ffffff" stroke-width="0.8" />
+      <rect x="30" y="34" width="8" height="12" class="weapon" fill="#45202c" stroke="#ffd6e2" stroke-width="1" />
+      <path d="M40 40 L70 40" class="highlight" stroke="#ffd6e2" />
+      <path d="M70 40 L100 40" class="highlight" stroke="#ffd6e2" />
+    </g>
+  </g>
+</svg>

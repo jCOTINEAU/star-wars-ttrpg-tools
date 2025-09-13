@@ -38,6 +38,48 @@
   let staticRangeOrigin = null; // {x,y,shipId}
   // Starfield
   let starCtx = null; let stars = null; let starAnimating = false; let starCanvas = null;
+
+  // External SVG asset loader & cache
+  const SVG_CACHE = new Map();
+  function fetchSvg(type) {
+    if (SVG_CACHE.has(type)) return Promise.resolve(SVG_CACHE.get(type));
+    return fetch(`/assets/svg/${type}.svg`).then(r => {
+      if (!r.ok) throw new Error('svg load failed');
+      return r.text();
+    }).then(txt => { SVG_CACHE.set(type, txt); return txt; });
+  }
+  function buildShipIconMarkup(ship) {
+    const small = ship.silhouette && ship.silhouette <= 4;
+    if (small) {
+      // Externalize label so SVG not obscured
+      return `<div class="icon ${ship.icon}" title="${ship.name}" data-type="${ship.icon}"></div><div class="ship-name" data-inline-label="false">${ship.name}</div>`;
+    }
+    return `<div class="icon ${ship.icon}" title="${ship.name}" data-type="${ship.icon}"><div class="label">${ship.name}</div></div>`;
+  }
+  async function ensureIconSvg(el, ship) {
+    const icon = el.querySelector('.icon');
+    if (!icon) return;
+    if (icon.querySelector('svg')) return;
+    try {
+      const raw = await fetchSvg(ship.icon);
+      // inject before label
+      const label = icon.querySelector('.label');
+      const svgMarkup = raw.replace('<svg', '<svg class="ship-svg"');
+      if (label) label.insertAdjacentHTML('beforebegin', svgMarkup); else icon.insertAdjacentHTML('afterbegin', svgMarkup);
+      // Perf mode pruning: remove glow / highlight / animation-heavy nodes
+      if (perfMode) {
+        const svg = icon.querySelector('svg');
+        if (svg) {
+          const removeSelectors = [
+            '.engine-glow', '.plating', '.highlight', '.panel-lines .highlight'
+          ];
+            removeSelectors.forEach(sel => svg.querySelectorAll(sel).forEach(n => n.remove()));
+          // Strip animation attributes
+          svg.querySelectorAll('[style]').forEach(n => { if (/animation|filter|blur/.test(n.getAttribute('style'))) n.removeAttribute('style'); });
+        }
+      }
+    } catch(e) { /* silent */ }
+  }
   function initStarfield(width, height) {
   if (perfMode) return; // disabled in performance mode
     if (!mapEl) return;
@@ -141,7 +183,7 @@
       el.id = 'ship-'+ship.id;
       el.className = 'ship';
       el.innerHTML = `<div class="rot">`+
-        `<div class="icon ${ship.icon}" title="${ship.name}">${ship.name}</div>` +
+        buildShipIconMarkup(ship) +
         `<div class="hpbar"><div class="hp"></div></div>` +
         `<div class="speed"></div>` +
         `<div class="range-rings"></div>`+
@@ -152,12 +194,14 @@
       arrow.className = 'facing-arrow';
       const rotWrap = el.querySelector('.rot');
       (rotWrap||el).appendChild(arrow);
+      ensureIconSvg(el, ship);
     }
     else {
       // Ensure arrow lives inside rotating wrapper for legacy nodes
       const rotWrap = el.querySelector('.rot');
       const arrow = el.querySelector('.facing-arrow');
       if (rotWrap && arrow && arrow.parentElement !== rotWrap) rotWrap.appendChild(arrow);
+      ensureIconSvg(el, ship);
     }
     positionShipEl(el, ship);
   applySilhouette(el, ship);
