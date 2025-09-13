@@ -43,18 +43,19 @@
           <label style="display:block;margin-bottom:6px;">Type<br>
             <select name="shieldType" style="width:100%;background:#1c2a37;border:1px solid #355067;color:#cfe8ff;">
               <option value="none">None</option>
-              <option value="full">Full</option>
+              <option value="bilateral">Front / Back</option>
               <option value="directional">Directional</option>
             </select>
           </label>
-          <div data-shield-mode="full" style="display:none;">
-            <label>Value<br><input name="shieldValue" type="number" min="0" max="3" step="1" /></label>
+          <div data-shield-mode="bilateral" style="display:none;display:grid;grid-template-columns:repeat(2,1fr);gap:6px;">
+            <label>Front<br><input name="shieldBiFront" type="number" min="0" max="4" step="1" /></label>
+            <label>Back<br><input name="shieldBiBack" type="number" min="0" max="4" step="1" /></label>
           </div>
           <div data-shield-mode="directional" style="display:none;display:grid;grid-template-columns:repeat(2,1fr);gap:6px;">
-            <label>Front<br><input name="shieldFront" type="number" min="0" max="3" step="1" /></label>
-            <label>Back<br><input name="shieldBack" type="number" min="0" max="3" step="1" /></label>
-            <label>Left<br><input name="shieldLeft" type="number" min="0" max="3" step="1" /></label>
-            <label>Right<br><input name="shieldRight" type="number" min="0" max="3" step="1" /></label>
+            <label>Front<br><input name="shieldFront" type="number" min="0" max="4" step="1" /></label>
+            <label>Back<br><input name="shieldBack" type="number" min="0" max="4" step="1" /></label>
+            <label>Left<br><input name="shieldLeft" type="number" min="0" max="4" step="1" /></label>
+            <label>Right<br><input name="shieldRight" type="number" min="0" max="4" step="1" /></label>
           </div>
         </fieldset>
         <label style="display:flex;align-items:center;gap:6px;">

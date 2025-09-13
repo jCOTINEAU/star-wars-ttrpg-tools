@@ -243,7 +243,7 @@
   }
 
   function shieldIntensityClass(v) {
-    const n = Math.max(0, Math.min(3, Number(v)||0));
+    const n = Math.max(0, Math.min(4, Number(v)||0));
     return 'int-' + n;
   }
 
@@ -260,11 +260,20 @@
     const wrap = document.createElement('div');
     wrap.className = 'shield-arcs';
     wrap.setAttribute('data-sig', signature);
-    if (sh.type === 'full') {
-      if (Number(sh.value) > 0) {
-        const d = document.createElement('div');
-        d.className = 'shield-arc full ' + shieldIntensityClass(sh.value) + (perfMode ? ' simple' : '');
-        wrap.appendChild(d);
+    if (sh.type === 'bilateral') {
+      const frontVal = Number(sh.front)||0;
+      const backVal = Number(sh.back)||0;
+      if (frontVal > 0) {
+        const f = document.createElement('div');
+        // front = right edge
+        f.className = 'shield-arc dir-right ' + shieldIntensityClass(frontVal) + (perfMode ? ' simple' : '');
+        wrap.appendChild(f);
+      }
+      if (backVal > 0) {
+        const b = document.createElement('div');
+        // back = left edge
+        b.className = 'shield-arc dir-left ' + shieldIntensityClass(backVal) + (perfMode ? ' simple' : '');
+        wrap.appendChild(b);
       }
     } else if (sh.type === 'directional') {
       // Mapping: arrow points to the screen-right side => front=right semicircle
@@ -588,8 +597,9 @@
     const st = ship.shield?.type || 'none';
     shipForm.shieldType.value = st;
     toggleShieldMode(st);
-    if (st === 'full') {
-      shipForm.shieldValue.value = ship.shield?.value ?? 0;
+    if (st === 'bilateral') {
+      shipForm.shieldBiFront.value = ship.shield?.front ?? 0;
+      shipForm.shieldBiBack.value = ship.shield?.back ?? 0;
     } else if (st === 'directional') {
       shipForm.shieldFront.value = ship.shield?.front ?? ship.shield?.up ?? 0;
       shipForm.shieldBack.value = ship.shield?.back ?? ship.shield?.down ?? 0;
@@ -604,9 +614,9 @@
   }
   if (isAdmin) {
     function toggleShieldMode(mode) {
-      const fullBox = shipForm.querySelector('[data-shield-mode="full"]');
+  const fullBox = shipForm.querySelector('[data-shield-mode="bilateral"]');
       const dirBox = shipForm.querySelector('[data-shield-mode="directional"]');
-      if (fullBox) fullBox.style.display = (mode === 'full') ? 'block' : 'none';
+  if (fullBox) fullBox.style.display = (mode === 'bilateral') ? 'grid' : 'none';
       if (dirBox) dirBox.style.display = (mode === 'directional') ? 'grid' : 'none';
     }
     shipForm.shieldType.addEventListener('change', () => {
@@ -627,14 +637,15 @@
       };
       // Shield patch
       const st = shipForm.shieldType.value;
-      if (st === 'full') {
-  const val = Math.max(0, Math.min(3, Number(shipForm.shieldValue.value)||0));
-  patch.shield = { type: 'full', value: val };
-    } else if (st === 'directional') {
-  const front = Math.max(0, Math.min(3, Number(shipForm.shieldFront.value)||0));
-  const back = Math.max(0, Math.min(3, Number(shipForm.shieldBack.value)||0));
-  const left = Math.max(0, Math.min(3, Number(shipForm.shieldLeft.value)||0));
-  const right = Math.max(0, Math.min(3, Number(shipForm.shieldRight.value)||0));
+      if (st === 'bilateral') {
+  const front = Math.max(0, Math.min(4, Number(shipForm.shieldBiFront.value)||0));
+  const back = Math.max(0, Math.min(4, Number(shipForm.shieldBiBack.value)||0));
+  patch.shield = { type: 'bilateral', front, back };
+      } else if (st === 'directional') {
+  const front = Math.max(0, Math.min(4, Number(shipForm.shieldFront.value)||0));
+  const back = Math.max(0, Math.min(4, Number(shipForm.shieldBack.value)||0));
+  const left = Math.max(0, Math.min(4, Number(shipForm.shieldLeft.value)||0));
+  const right = Math.max(0, Math.min(4, Number(shipForm.shieldRight.value)||0));
   patch.shield = { type: 'directional', front, back, left, right };
       } else {
         patch.shield = null;
@@ -663,8 +674,9 @@
           if (shipForm.silhouette) shipForm.silhouette.value = s.silhouette || 3;
           const st2 = s.shield?.type || 'none';
           shipForm.shieldType.value = st2; toggleShieldMode(st2);
-          if (st2 === 'full') {
-            shipForm.shieldValue.value = s.shield?.value ?? 0;
+          if (st2 === 'bilateral') {
+            shipForm.shieldBiFront.value = s.shield?.front ?? 0;
+            shipForm.shieldBiBack.value = s.shield?.back ?? 0;
           } else if (st2 === 'directional') {
             shipForm.shieldFront.value = s.shield?.front ?? s.shield?.up ?? 0;
             shipForm.shieldBack.value = s.shield?.back ?? s.shield?.down ?? 0;

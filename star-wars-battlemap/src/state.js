@@ -4,17 +4,23 @@ const path = require('path');
 function normalizeShield(shield) {
   if (!shield || typeof shield !== 'object') return null;
   if (shield.type === 'full') {
-  const val = Math.max(0, Math.min(3, Number(shield.value)||0));
-    return { type: 'full', value: val };
+  // Legacy 'full' -> treat as bilateral with same value front/back
+  const val = Math.max(0, Math.min(4, Number(shield.value)||0));
+  return { type: 'bilateral', front: val, back: val };
+  }
+  if (shield.type === 'bilateral') {
+  const front = Math.max(0, Math.min(4, Number(shield.front)||0));
+  const back = Math.max(0, Math.min(4, Number(shield.back)||0));
+  return { type: 'bilateral', front, back };
   }
   if (shield.type === 'directional') {
   // Accept new front/back plus legacy up/down for backward compatibility
   const frontRaw = shield.front != null ? shield.front : shield.up;
   const backRaw = shield.back != null ? shield.back : shield.down;
-  const front = Math.max(0, Math.min(3, Number(frontRaw)||0));
-  const back = Math.max(0, Math.min(3, Number(backRaw)||0));
-  const left = Math.max(0, Math.min(3, Number(shield.left)||0));
-  const right = Math.max(0, Math.min(3, Number(shield.right)||0));
+  const front = Math.max(0, Math.min(4, Number(frontRaw)||0));
+  const back = Math.max(0, Math.min(4, Number(backRaw)||0));
+  const left = Math.max(0, Math.min(4, Number(shield.left)||0));
+  const right = Math.max(0, Math.min(4, Number(shield.right)||0));
   return { type: 'directional', front, back, left, right };
   }
   return null;
