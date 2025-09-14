@@ -106,11 +106,10 @@
     const existing = unitsBox.querySelectorAll('.unit');
     if (existing.length !== desired) {
       unitsBox.innerHTML = '';
-      const s = SIL_TABLE[ship.silhouette] || SIL_TABLE[3];
-      const base = 64;
-      const scaleFactor = (ship.icon && ['fighter','wing'].includes(ship.icon)) ? 0.5 : 1;
-      const unitW = s.w * base * scaleFactor;
-      const unitH = s.h * base * scaleFactor;
+  const baseSize = (typeof ship.silhouette === 'number' && SIL_SIZES[ship.silhouette]) ? SIL_SIZES[ship.silhouette] : SIL_SIZES[3];
+  const iconScale = (ship.icon && ['fighter','wing'].includes(ship.icon)) ? 0.5 : 1;
+  const unitW = baseSize.w * iconScale;
+  const unitH = baseSize.h * iconScale;
       let cols = 1, rows = 1;
       if (desired > 1) cols = 2;
       if (desired > 2) rows = 2;
@@ -323,46 +322,57 @@
   if (typeof ship.heading === 'number') el.setAttribute('data-heading', ship.heading);
   }
 
-  const SIL_TABLE = { 3:{w:1,h:1},4:{w:1,h:1},5:{w:2,h:1},6:{w:2,h:1},7:{w:3,h:2},8:{w:4,h:2},9:{w:5,h:2},10:{w:6,h:3} };
+  const SIL_SIZES = {
+    3:{ w:64,  h:64  },
+    4:{ w:64,  h:64  },
+    5:{ w:128, h:64  },
+    6:{ w:128, h:64  },
+    7:{ w:192, h:128 },
+    8:{ w:256, h:128 },
+    9:{ w:384, h:192 },
+    10:{ w:512, h:256 }
+  };
   function applySilhouette(el, ship) {
-  const s = SIL_TABLE[ship.silhouette] || SIL_TABLE[3];
-  const base = 64; // px per square
-  const scaleFactor = (ship.icon && ['fighter','wing'].includes(ship.icon)) ? 0.5 : 1; // individual craft size adjustments
-  const unitW = s.w * base * scaleFactor;
-  const unitH = s.h * base * scaleFactor;
-  const count = Math.max(1, ship.numberOf || 1);
-  let cols = 1, rows = 1;
-  if (count > 1) cols = 2;
-  if (count > 2) rows = 2; // 2x2 formation for up to 4
-  const wpx = unitW * cols;
-  const hpx = unitH * rows;
-  el.style.width = wpx + 'px';
-  el.style.height = hpx + 'px';
-  const baseDepthPct = 32;
-  const shortDepth = 18;
-  if (wpx > hpx) {
-    el.style.setProperty('--shield-depth-up', baseDepthPct + '%');
-    el.style.setProperty('--shield-depth-down', baseDepthPct + '%');
-    el.style.setProperty('--shield-depth-left', shortDepth + '%');
-    el.style.setProperty('--shield-depth-right', shortDepth + '%');
-  } else if (hpx > wpx) {
-    el.style.setProperty('--shield-depth-left', baseDepthPct + '%');
-    el.style.setProperty('--shield-depth-right', baseDepthPct + '%');
-    el.style.setProperty('--shield-depth-up', shortDepth + '%');
-    el.style.setProperty('--shield-depth-down', shortDepth + '%');
-  } else {
-    el.style.setProperty('--shield-depth-up', baseDepthPct + '%');
-    el.style.setProperty('--shield-depth-down', baseDepthPct + '%');
-    el.style.setProperty('--shield-depth-left', baseDepthPct + '%');
-    el.style.setProperty('--shield-depth-right', baseDepthPct + '%');
+    const size = SIL_SIZES[ship.silhouette] || SIL_SIZES[3];
+    const iconScale = (ship.icon && ['fighter','wing'].includes(ship.icon)) ? 0.5 : 1;
+    const unitW = size.w * iconScale;
+    const unitH = size.h * iconScale;
+    const count = Math.max(1, ship.numberOf || 1);
+    let cols = 1, rows = 1;
+    if (count > 1) cols = 2;
+    if (count > 2) rows = 2; // up to 4
+    const wpx = unitW * cols;
+    const hpx = unitH * rows;
+    el.style.width = wpx + 'px';
+    el.style.height = hpx + 'px';
+    // Shield depth based on relative ship size (use % of smaller side, capped)
+    const minSide = Math.min(wpx, hpx);
+    const baseDepth = Math.min(60, Math.max(24, Math.round(minSide * 0.35 / (64) * 32))); // scaled from baseline 64 -> 32%
+    const shortDepth = Math.round(baseDepth * 0.55);
+    if (wpx > hpx) {
+      el.style.setProperty('--shield-depth-up', baseDepth + '%');
+      el.style.setProperty('--shield-depth-down', baseDepth + '%');
+      el.style.setProperty('--shield-depth-left', shortDepth + '%');
+      el.style.setProperty('--shield-depth-right', shortDepth + '%');
+    } else if (hpx > wpx) {
+      el.style.setProperty('--shield-depth-left', baseDepth + '%');
+      el.style.setProperty('--shield-depth-right', baseDepth + '%');
+      el.style.setProperty('--shield-depth-up', shortDepth + '%');
+      el.style.setProperty('--shield-depth-down', shortDepth + '%');
+    } else {
+      el.style.setProperty('--shield-depth-up', baseDepth + '%');
+      el.style.setProperty('--shield-depth-down', baseDepth + '%');
+      el.style.setProperty('--shield-depth-left', baseDepth + '%');
+      el.style.setProperty('--shield-depth-right', baseDepth + '%');
+    }
+    const hpBar = el.querySelector('.hpbar');
+    if (hpBar) {
+      const maxWidth = Math.max(0, wpx - 4);
+      const minBase = iconScale < 1 ? 20 : 50;
+      const target = Math.max(minBase, Math.min(400, maxWidth));
+      hpBar.style.width = target + 'px';
+    }
   }
-  const hpBar = el.querySelector('.hpbar');
-  if (hpBar) {
-    const maxWidth = Math.max(0, wpx - 4);
-    const target = Math.max(scaleFactor < 1 ? 20 : 50, Math.min(350, maxWidth));
-    hpBar.style.width = target + 'px';
-  }
-}
 
   function updateHeading(el, ship) {
     if (!el) return;
