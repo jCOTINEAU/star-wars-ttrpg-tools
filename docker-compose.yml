@@ -50,4 +50,4 @@ services:
     restart: unless-stopped
     # Mount config for easy tweaking without rebuild (optional)
     volumes:
-      - ./star-wars-battlemap/config:/app/config:ro
+      - ./star-wars-battlemap/config:/app/config

@@ -19,6 +19,8 @@
       <button id="panDown" title="Pan Down">▼</button>
   <span class="sep"></span>
   <button id="undoMove" title="Undo last move">↶ Undo</button>
+  <span class="sep"></span>
+  <button id="saveState" title="Save current ships state">💾 Save</button>
       <span class="sep"></span>
       <span id="selectedInfo">No selection</span>
     </div>
@@ -67,6 +69,9 @@
         </label>
         <label style="display:flex;align-items:center;gap:6px;">
           <input name="showShield" type="checkbox" /> Show Shield arcs
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;">
+          <input name="hideFromViewer" type="checkbox" checked /> Hidden from viewers
         </label>
         <div class="panel-buttons">
           <button type="submit">Save</button>

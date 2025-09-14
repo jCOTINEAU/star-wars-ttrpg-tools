@@ -2,6 +2,7 @@ const express = require('express');
 const http = require('http');
 const { Server } = require('socket.io');
 const path = require('path');
+const fs = require('fs');
 const BattleState = require('./src/state');
 
 const PORT = process.env.PORT || 3010;
@@ -26,6 +27,23 @@ app.use('/assets', express.static(path.join(__dirname, 'public')));
 // API endpoints
 app.get('/api/state', (req, res) => {
   res.json({ ...state.getState(), rangeBands: GLOBAL_RANGE_BANDS, view: sharedView });
+});
+
+// Save current state (ships) to a file (admin action expected client-side)
+app.post('/api/save-state', (req, res) => {
+  // Simple admin gate: require ?admin=true
+  if (req.query.admin !== 'true') return res.status(403).json({ error: 'Forbidden' });
+  const outPath = path.join(__dirname, 'config', 'ships_ongoing.json');
+  try {
+    const shipsArr = Array.from(state.ships.values()).map(s => {
+      const { id, name, icon, x, y, hp, maxHp, speed, silhouette, heading, showHp, showSpeed, showShield, shield, numberOf, hideFromViewer } = s;
+      return { id, name, icon, x, y, hp, maxHp, speed, silhouette, heading, showHp, showSpeed, showShield, shield, numberOf, hideFromViewer };
+    });
+    fs.writeFileSync(outPath, JSON.stringify(shipsArr, null, 2), 'utf-8');
+    res.json({ ok: true, file: 'config/ships_ongoing.json' });
+  } catch (e) {
+    res.status(500).json({ error: e.message });
+  }
 });
 
 app.get('/health', (_req, res) => res.json({ ok: true }));

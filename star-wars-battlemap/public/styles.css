@@ -36,6 +36,7 @@ body { margin:0; font-family: system-ui, sans-serif; background:#060a10; color:#
 /* If more than 4 someday, they will overflow; current design supports up to 4 visually */
 /* External small-ship name (placed outside icon to not obscure SVG) */
 .ship .ship-name { position:absolute; left:50%; transform:translateX(-50%); bottom:-8px; font-size:11px; font-weight:600; background:rgba(0,0,0,0.35); padding:1px 4px; border-radius:3px; pointer-events:none; backdrop-filter:blur(2px); white-space:nowrap; }
+.ship .ship-name[data-hidden="true"], .ship .icon .label[data-hidden="true"] { color:#ff4d4d; text-shadow:0 0 4px #600; }
 /* Reposition hp bar & speed further down for small silhouettes so name sits directly under icon */
 .ship[data-silhouette="3"] .hpbar, .ship[data-silhouette="4"] .hpbar { bottom:-22px; }
 .ship[data-silhouette="3"] .speed, .ship[data-silhouette="4"] .speed { bottom:-36px; }

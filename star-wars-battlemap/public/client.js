@@ -56,15 +56,15 @@
     if (count > 1) {
       // Squad style icon wrapper; units populated later once SVG fetched
       if (small) {
-        return `<div class="icon squad ${ship.icon}" title="${ship.name}" data-type="${ship.icon}" data-number="${count}"><div class="units"></div></div><div class="ship-name" data-inline-label="false">${ship.name}</div>`;
+        return `<div class="icon squad ${ship.icon}" title="${ship.name}" data-type="${ship.icon}" data-number="${count}"><div class="units"></div></div><div class="ship-name" data-inline-label="false" ${ship.hideFromViewer? 'data-hidden="true"':''}>${ship.name}</div>`;
       }
-      return `<div class="icon squad ${ship.icon}" title="${ship.name}" data-type="${ship.icon}" data-number="${count}"><div class="units"></div><div class="label">${ship.name}</div></div>`;
+      return `<div class="icon squad ${ship.icon}" title="${ship.name}" data-type="${ship.icon}" data-number="${count}"><div class="units"></div><div class="label" ${ship.hideFromViewer? 'data-hidden="true"':''}>${ship.name}</div></div>`;
     }
     if (small) {
       // Externalize label so SVG not obscured
-      return `<div class="icon ${ship.icon}" title="${ship.name}" data-type="${ship.icon}"></div><div class="ship-name" data-inline-label="false">${ship.name}</div>`;
+      return `<div class="icon ${ship.icon}" title="${ship.name}" data-type="${ship.icon}"></div><div class="ship-name" data-inline-label="false" ${ship.hideFromViewer? 'data-hidden="true"':''}>${ship.name}</div>`;
     }
-    return `<div class="icon ${ship.icon}" title="${ship.name}" data-type="${ship.icon}"><div class="label">${ship.name}</div></div>`;
+    return `<div class="icon ${ship.icon}" title="${ship.name}" data-type="${ship.icon}"><div class="label" ${ship.hideFromViewer? 'data-hidden="true"':''}>${ship.name}</div></div>`;
   }
   async function ensureIconSvg(el, ship) {
     const icon = el.querySelector('.icon');
@@ -275,9 +275,17 @@
     updateHpBar(el, ship);
     updateSpeed(el, ship);
   applyVisibilityFlags(el, ship);
+  updateHiddenName(el, ship);
   updateShieldArcs(el, ship);
     updateHeading(el, ship);
     return el;
+  }
+
+  function updateHiddenName(el, ship) {
+    if (!el) return;
+    const nameEl = el.querySelector('.ship-name') || el.querySelector('.icon .label');
+    if (!nameEl) return;
+    if (ship.hideFromViewer) nameEl.setAttribute('data-hidden','true'); else nameEl.removeAttribute('data-hidden');
   }
 
   function positionShipEl(el, ship) {
@@ -559,7 +567,9 @@
 
   function handleFullState(data) {
     if (Array.isArray(data.rangeBands)) globalRangeBands = data.rangeBands.slice();
-    ships = new Map(data.ships.map(s => [s.id, s]));
+  // Filter hidden ships for viewers
+  const incoming = isAdmin ? data.ships : data.ships.filter(s => !s.hideFromViewer);
+  ships = new Map(incoming.map(s => [s.id, s]));
     mapEl.style.width = data.map.width + 'px';
     mapEl.style.height = data.map.height + 'px';
   if (!perfMode) initStarfield(data.map.width, data.map.height);
@@ -575,13 +585,15 @@
   // Socket listeners
   socket.on('fullState', handleFullState);
   socket.on('shipMoved', (ship) => {
-    ships.set(ship.id, ship);
+  if (!isAdmin && ship.hideFromViewer) return; // skip hidden for viewers
+  ships.set(ship.id, ship);
     const el = createShipElement(ship);
   if (ship.id === selectedShipId) {
       renderRangeRings(el, ship);
       selectedInfo.textContent = `Selected: ${ship.name} (HP ${ship.hp}/${ship.maxHp})`;
     }
   updateHeading(el, ship);
+  updateHiddenName(el, ship);
   });
   socket.on('attackResult', (res) => {
     if (res.error) return;
@@ -645,6 +657,25 @@
   document.getElementById('panDown').onclick = () => { offsetY -= PAN_STEP; applyView(); broadcastView(); };
   const undoBtn = document.getElementById('undoMove');
   if (undoBtn) undoBtn.onclick = () => { socket.emit('undoMove'); };
+  const saveBtn = document.getElementById('saveState');
+  if (saveBtn) {
+    if (!isAdmin) { saveBtn.style.display = 'none'; }
+    saveBtn.onclick = async () => {
+      saveBtn.disabled = true;
+      const prevText = saveBtn.textContent;
+      saveBtn.textContent = 'Saving...';
+      try {
+        const res = await fetch('/api/save-state?admin=' + (isAdmin?'true':'false'), { method:'POST' });
+        const data = await res.json();
+        if (!res.ok || data.error) throw new Error(data.error||'Failed');
+        saveBtn.textContent = 'Saved';
+      } catch(e) {
+        saveBtn.textContent = 'Error';
+      } finally {
+        setTimeout(()=>{ saveBtn.textContent = prevText; saveBtn.disabled = false; }, 1200);
+      }
+    };
+  }
 
   // Keyboard arrow key panning
   window.addEventListener('keydown', (e) => {
@@ -746,6 +777,7 @@
   shipForm.showHp.checked = !!ship.showHp;
   shipForm.showSpeed.checked = !!ship.showSpeed;
   if (shipForm.showShield) shipForm.showShield.checked = !!ship.showShield;
+  if (shipForm.hideFromViewer) shipForm.hideFromViewer.checked = !!ship.hideFromViewer;
     // Shield fields
     const st = ship.shield?.type || 'none';
     shipForm.shieldType.value = st;
@@ -787,6 +819,7 @@
   ,showHp: shipForm.showHp.checked
   ,showSpeed: shipForm.showSpeed.checked
   ,showShield: shipForm.showShield.checked
+ ,hideFromViewer: shipForm.hideFromViewer ? shipForm.hideFromViewer.checked : undefined
   ,silhouette: Number(shipForm.silhouette.value)||3
       };
       // Shield patch
@@ -815,7 +848,7 @@
         shipFormStatus.style.color = '#ff6666';
       } else if (res.ok && res.ship) {
         const s = res.ship;
-        ships.set(s.id, s);
+  ships.set(s.id, s);
         if (panelShipId === s.id) {
           shipFormStatus.textContent = 'Saved';
           shipForm.name.value = s.name;
@@ -826,6 +859,7 @@
           shipForm.showHp.checked = !!s.showHp;
           shipForm.showSpeed.checked = !!s.showSpeed;
           if (shipForm.showShield) shipForm.showShield.checked = !!s.showShield;
+          if (shipForm.hideFromViewer) shipForm.hideFromViewer.checked = !!s.hideFromViewer;
           if (shipForm.silhouette) shipForm.silhouette.value = s.silhouette || 3;
           const st2 = s.shield?.type || 'none';
           shipForm.shieldType.value = st2; toggleShieldMode(st2);
@@ -844,6 +878,7 @@
         }
   const el = document.getElementById('ship-'+s.id);
         if (el) { updateSpeed(el, s); applyVisibilityFlags(el, s); }
+  if (el) updateHiddenName(el, s);
   // If count changed, rebuild icon markup to adjust units
   if (el && el.querySelector('.icon')) {
     const iconWrap = el.querySelector('.icon');
