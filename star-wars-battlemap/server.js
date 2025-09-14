@@ -81,6 +81,13 @@ io.on('connection', socket => {
     socket.emit('shipUpdateResult', { ok: true, ship: updated });
   });
 
+  socket.on('createShip', (data) => {
+    if (!data || typeof data !== 'object') return;
+    const created = state.createShip(data);
+    io.emit('shipMoved', created);
+    socket.emit('shipCreateResult', { ok: true, ship: created });
+  });
+
   socket.on('undoMove', () => {
     const undone = state.undoMove();
     if (undone) io.emit('shipMoved', undone);

@@ -21,6 +21,7 @@
   <button id="undoMove" title="Undo last move">↶ Undo</button>
   <span class="sep"></span>
   <button id="saveState" title="Save current ships state">💾 Save</button>
+  <button id="createShip" title="Create a new ship">➕ Ship</button>
       <span class="sep"></span>
       <span id="selectedInfo">No selection</span>
     </div>
@@ -36,6 +37,15 @@
       <h3>Ship</h3>
       <form id="shipForm">
         <label>Name<br><input name="name" type="text" /></label>
+        <label>Icon<br>
+          <select name="icon" style="width:100%;padding:4px 6px;background:#1c2a37;border:1px solid #355067;color:#cfe8ff;">
+            <option value="fighter">fighter</option>
+            <option value="wing">wing</option>
+            <option value="shuttle">shuttle</option>
+            <option value="corvette">corvette</option>
+            <option value="frigate">frigate</option>
+          </select>
+        </label>
         <label>HP<br><input name="hp" type="number" min="0" /></label>
         <label>Max HP<br><input name="maxHp" type="number" min="0" /></label>
   <label>Count (numberOf)<br><input name="numberOf" type="number" min="1" max="16" step="1" /></label>

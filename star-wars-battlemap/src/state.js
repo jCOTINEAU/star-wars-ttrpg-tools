@@ -34,6 +34,7 @@ class BattleState {
   this.mapHeight = 6000;
     this.ships = new Map(); // id -> ship
     this.lastAttackId = 0;
+  this._idCounter = 1;
   // Unified history stack (LIFO) containing last 10 reversible events:
   //  - move:   { type:'move', id, from:{x,y}, to:{x,y} }
   //  - speed:  { type:'speed', id, from:number, to:number }
@@ -140,7 +141,7 @@ class BattleState {
   updateShip(id, patch) {
     const ship = this.ships.get(id);
     if (!ship) return { error: 'Not found' };
-  const allowed = ['name','hp','maxHp','speed','x','y','showHp','showSpeed','showShield','shield','silhouette','heading','numberOf','hideFromViewer'];
+  const allowed = ['name','icon','hp','maxHp','speed','x','y','showHp','showSpeed','showShield','shield','silhouette','heading','numberOf','hideFromViewer'];
     for (const k of Object.keys(patch)) {
       if (allowed.includes(k) && patch[k] !== undefined) {
         if (k === 'speed') {
@@ -150,6 +151,11 @@ class BattleState {
           ship[k] = after;
         }
         else if (k === 'hp' || k === 'maxHp') ship[k] = Math.max(0, Number(patch[k])||0); // direct edits to hp aren't considered "damage" per requirement
+  else if (k === 'icon') {
+    const val = String(patch[k]||'').trim();
+    const allowedIcons = new Set(['fighter','wing','shuttle','corvette','frigate']);
+    ship[k] = allowedIcons.has(val) ? val : ship[k];
+  }
   else if (k === 'showHp' || k === 'showSpeed' || k === 'showShield') ship[k] = !!patch[k];
   else if (k === 'shield') ship[k] = normalizeShield(patch[k]);
   else if (k === 'silhouette') ship[k] = clampSilhouette(patch[k]);
@@ -163,6 +169,29 @@ class BattleState {
       }
     }
     if (ship.hp > ship.maxHp) ship.hp = ship.maxHp;
+    return { ...ship };
+  }
+
+  createShip(data) {
+    // Basic defaults
+    const id = data.id && !this.ships.has(data.id) ? String(data.id) : `S${this._idCounter++}`;
+    const name = data.name ? String(data.name) : 'New Ship';
+    const icon = data.icon ? String(data.icon) : 'fighter';
+    const x = Number.isFinite(Number(data.x)) ? Math.max(0, Math.min(this.mapWidth, Number(data.x))) : Math.round(this.mapWidth/2);
+    const y = Number.isFinite(Number(data.y)) ? Math.max(0, Math.min(this.mapHeight, Number(data.y))) : Math.round(this.mapHeight/2);
+    const maxHp = Math.max(1, Number(data.maxHp)||1);
+    const hp = Math.max(0, Math.min(maxHp, Number(data.hp)||maxHp));
+    const speed = Math.max(0, Math.min(5, Number(data.speed)||0));
+    const silhouette = clampSilhouette(data.silhouette);
+    const heading = clampHeading(data.heading);
+    const numberOf = Math.max(1, Math.min(16, Math.round(Number(data.numberOf)||1)));
+    const hideFromViewer = data.hideFromViewer !== undefined ? !!data.hideFromViewer : true;
+    const showHp = !!data.showHp;
+    const showSpeed = !!data.showSpeed;
+    const showShield = !!data.showShield;
+    const shield = normalizeShield(data.shield);
+    const ship = { id, name, icon, x, y, hp, maxHp, speed, silhouette, heading, numberOf, hideFromViewer, showHp, showSpeed, showShield, shield };
+    this.ships.set(id, ship);
     return { ...ship };
   }
 

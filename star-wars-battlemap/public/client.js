@@ -14,6 +14,7 @@
   const shipForm = document.getElementById('shipForm');
   const closePanelBtn = document.getElementById('closePanel');
   const shipFormStatus = document.getElementById('shipFormStatus');
+  const createShipBtn = document.getElementById('createShip');
   let panelShipId = null;
   const attackForm = document.getElementById('attackForm');
   const damageInput = document.getElementById('damageInput');
@@ -278,6 +279,7 @@
   updateHiddenName(el, ship);
   updateShieldArcs(el, ship);
     updateHeading(el, ship);
+  adjustLabelOrientation(el, ship.heading||0);
     return el;
   }
 
@@ -365,6 +367,23 @@
     if (rot && typeof ship.heading === 'number') {
       rot.style.transform = `rotate(${ship.heading}deg)`;
     }
+    adjustLabelOrientation(el, ship.heading||0);
+  }
+
+  function adjustLabelOrientation(el, heading) {
+    const flip = heading > 90 && heading < 270; // upside-ish
+    const labels = [];
+    const nameOutside = el.querySelector('.ship-name');
+    if (nameOutside) labels.push(nameOutside);
+    el.querySelectorAll('.icon .label').forEach(l => labels.push(l));
+    labels.forEach(l => {
+      if (l.classList.contains('ship-name')) {
+        // Base translation keeps it horizontally centered below original icon.
+        l.style.transform = flip ? 'translateX(-50%) rotate(180deg)' : 'translateX(-50%)';
+      } else {
+        l.style.transform = flip ? 'rotate(180deg)' : '';
+      }
+    });
   }
 
   function shieldIntensityClass(v) {
@@ -769,6 +788,7 @@
     panelShipId = ship.id;
     shipPanel.classList.remove('hidden');
     shipForm.name.value = ship.name;
+  if (shipForm.icon) shipForm.icon.value = ship.icon || 'fighter';
     shipForm.hp.value = ship.hp;
     shipForm.maxHp.value = ship.maxHp;
   if (shipForm.numberOf) shipForm.numberOf.value = ship.numberOf || 1;
@@ -798,6 +818,46 @@
     shipPanel.classList.add('hidden');
   }
   if (isAdmin) {
+    if (createShipBtn) {
+      createShipBtn.onclick = () => {
+        // Initialize blank/new ship form
+        panelShipId = '__new__';
+        shipPanel.classList.remove('hidden');
+        // Determine spawn coordinates:
+        // Priority: selected ship position > last clicked logical focus > map center
+        let spawnX, spawnY;
+        if (selectedShipId && ships.get(selectedShipId)) {
+          const ref = ships.get(selectedShipId);
+          spawnX = ref.x; spawnY = ref.y;
+        } else if (lastFocus) {
+          spawnX = Math.round(lastFocus.x);
+          spawnY = Math.round(lastFocus.y);
+        } else {
+          spawnX = Math.round((mapEl.offsetWidth||8000)/2);
+          spawnY = Math.round((mapEl.offsetHeight||6000)/2);
+        }
+        shipForm.name.value = 'New Ship';
+        if (shipForm.icon) shipForm.icon.value = 'fighter';
+        shipForm.hp.value = 1;
+        shipForm.maxHp.value = 1;
+        if (shipForm.numberOf) shipForm.numberOf.value = 1;
+        shipForm.speed.value = 0;
+        if (shipForm.silhouette) shipForm.silhouette.value = 3;
+        shipForm.showHp.checked = false;
+        shipForm.showSpeed.checked = false;
+        if (shipForm.showShield) shipForm.showShield.checked = false;
+        if (shipForm.hideFromViewer) shipForm.hideFromViewer.checked = true;
+        shipForm.shieldType.value = 'none';
+        const biBox = shipForm.querySelector('[data-shield-mode="bilateral"]');
+        const dirBox = shipForm.querySelector('[data-shield-mode="directional"]');
+        if (biBox) biBox.style.display='none';
+        if (dirBox) dirBox.style.display='none';
+        shipFormStatus.textContent='';
+        // Store temp coordinates on form dataset for create
+  shipForm.dataset.createX = spawnX;
+  shipForm.dataset.createY = spawnY;
+      };
+    }
     function toggleShieldMode(mode) {
   const fullBox = shipForm.querySelector('[data-shield-mode="bilateral"]');
       const dirBox = shipForm.querySelector('[data-shield-mode="directional"]');
@@ -810,8 +870,32 @@
     shipForm.addEventListener('submit', (e) => {
       e.preventDefault();
       if (!panelShipId) return;
+      if (panelShipId === '__new__') {
+        const payload = {
+          name: shipForm.name.value.trim() || 'New Ship',
+          icon: shipForm.icon ? shipForm.icon.value : 'fighter',
+          hp: Number(shipForm.hp.value)||1,
+          maxHp: Number(shipForm.maxHp.value)||1,
+          numberOf: shipForm.numberOf ? Number(shipForm.numberOf.value)||1 : 1,
+          speed: Number(shipForm.speed.value)||0,
+          silhouette: Number(shipForm.silhouette.value)||3,
+          showHp: shipForm.showHp.checked,
+          showSpeed: shipForm.showSpeed.checked,
+          showShield: shipForm.showShield.checked,
+          hideFromViewer: shipForm.hideFromViewer ? shipForm.hideFromViewer.checked : true,
+          shield: buildShieldFromForm(),
+          x: Number(shipForm.dataset.createX)||0,
+          y: Number(shipForm.dataset.createY)||0,
+          heading: 0
+        };
+        shipFormStatus.textContent = 'Creating...';
+        shipFormStatus.style.color = '#8bc34a';
+        socket.emit('createShip', payload);
+        return;
+      }
       const patch = {
         name: shipForm.name.value.trim(),
+  icon: shipForm.icon ? shipForm.icon.value : undefined,
         hp: Number(shipForm.hp.value),
         maxHp: Number(shipForm.maxHp.value),
   numberOf: shipForm.numberOf ? Number(shipForm.numberOf.value) : undefined,
@@ -882,13 +966,12 @@
   // If count changed, rebuild icon markup to adjust units
   if (el && el.querySelector('.icon')) {
     const iconWrap = el.querySelector('.icon');
+    const oldIcon = iconWrap.getAttribute('data-type') || '';
     const currentCount = iconWrap.classList.contains('squad');
     const wantSquad = (s.numberOf||1) > 1;
-    if (currentCount !== wantSquad) {
-      // Replace inner rot content except hp/speed bars
+    if (currentCount !== wantSquad || oldIcon !== s.icon) {
       const rot = el.querySelector('.rot');
       if (rot) {
-        // Rebuild from scratch for simplicity
         const bars = rot.querySelector('.hpbar');
         const speedEl = rot.querySelector('.speed');
         const rangeRings = rot.querySelector('.range-rings');
@@ -896,8 +979,17 @@
         ensureIconSvg(el, s);
       }
     } else if (wantSquad) {
-      // Update squad units without rebuild
       ensureIconSvg(el, s);
+    } else if (oldIcon !== s.icon) {
+      // Non-squad icon change: rebuild
+      const rot = el.querySelector('.rot');
+      if (rot) {
+        const bars = rot.querySelector('.hpbar');
+        const speedEl = rot.querySelector('.speed');
+        const rangeRings = rot.querySelector('.range-rings');
+        rot.innerHTML = buildShipIconMarkup(s) + (bars?bars.outerHTML:'') + (speedEl?speedEl.outerHTML:'') + (rangeRings?rangeRings.outerHTML:'');
+        ensureIconSvg(el, s);
+      }
     }
   }
   if (el) applySilhouette(el, s);
@@ -905,6 +997,52 @@
         setTimeout(() => { if (shipFormStatus.textContent === 'Saved') shipFormStatus.textContent=''; }, 1500);
       }
     });
+
+    socket.on('shipCreateResult', (res) => {
+      if (res.error) {
+        shipFormStatus.textContent = res.error;
+        shipFormStatus.style.color = '#ff6666';
+        return;
+      }
+      if (res.ok && res.ship) {
+        const s = res.ship;
+        ships.set(s.id, s);
+        panelShipId = s.id; // switch to normal edit mode
+        shipFormStatus.textContent = 'Created';
+        shipFormStatus.style.color = '#8bc34a';
+        shipForm.name.value = s.name;
+        if (shipForm.icon) shipForm.icon.value = s.icon;
+        shipForm.hp.value = s.hp;
+        shipForm.maxHp.value = s.maxHp;
+        if (shipForm.numberOf) shipForm.numberOf.value = s.numberOf || 1;
+        shipForm.speed.value = s.speed ?? 0;
+        if (shipForm.silhouette) shipForm.silhouette.value = s.silhouette || 3;
+        shipForm.showHp.checked = !!s.showHp;
+        shipForm.showSpeed.checked = !!s.showSpeed;
+        if (shipForm.showShield) shipForm.showShield.checked = !!s.showShield;
+        if (shipForm.hideFromViewer) shipForm.hideFromViewer.checked = !!s.hideFromViewer;
+        shipForm.shieldType.value = s.shield?.type || 'none';
+        shipForm.dataset.createX = '';
+        shipForm.dataset.createY = '';
+        setTimeout(()=>{ if (shipFormStatus.textContent === 'Created') shipFormStatus.textContent=''; }, 1500);
+      }
+    });
+
+    function buildShieldFromForm() {
+      const st = shipForm.shieldType.value;
+      if (st === 'bilateral') {
+        const front = Math.max(0, Math.min(4, Number(shipForm.shieldBiFront.value)||0));
+        const back = Math.max(0, Math.min(4, Number(shipForm.shieldBiBack.value)||0));
+        return { type: 'bilateral', front, back };
+      } else if (st === 'directional') {
+        const front = Math.max(0, Math.min(4, Number(shipForm.shieldFront.value)||0));
+        const back = Math.max(0, Math.min(4, Number(shipForm.shieldBack.value)||0));
+        const left = Math.max(0, Math.min(4, Number(shipForm.shieldLeft.value)||0));
+        const right = Math.max(0, Math.min(4, Number(shipForm.shieldRight.value)||0));
+        return { type: 'directional', front, back, left, right };
+      }
+      return null;
+    }
 
     // --- Cursor coordinate overlay ---
     const coordEl = document.getElementById('cursorCoords');
