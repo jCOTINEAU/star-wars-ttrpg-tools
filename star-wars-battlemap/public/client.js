@@ -535,7 +535,12 @@
   function broadcastView(){ socket.emit('setView', { scale, offsetX, offsetY }); }
   document.getElementById('zoomIn').onclick = () => { scale = clampScale(scale + ZOOM_STEP); applyView(); broadcastView(); };
   document.getElementById('zoomOut').onclick = () => { scale = clampScale(scale - ZOOM_STEP); applyView(); broadcastView(); };
-  document.getElementById('resetView').onclick = () => { scale = 0.5; offsetX = 0; offsetY = 0; applyView(); broadcastView(); };
+  document.getElementById('resetView').onclick = () => {
+    scale = 0.5; // default zoom
+    // Top-left shows logical 0,0
+    offsetX = 0;
+    offsetY = 0;
+    applyView(); broadcastView(); };
   document.getElementById('panLeft').onclick = () => { offsetX += PAN_STEP; applyView(); broadcastView(); };
   document.getElementById('panRight').onclick = () => { offsetX -= PAN_STEP; applyView(); broadcastView(); };
   document.getElementById('panUp').onclick = () => { offsetY += PAN_STEP; applyView(); broadcastView(); };

@@ -29,8 +29,9 @@ function normalizeShield(shield) {
 // In‑memory authoritative state (single process for now)
 class BattleState {
   constructor() {
-  this.mapWidth = 16000; // px logical space (4x previous)
-  this.mapHeight = 12000;
+  // Map dimensions halved (was 16000x12000) to reduce overall size
+  this.mapWidth = 8000; // px logical space
+  this.mapHeight = 6000;
     this.ships = new Map(); // id -> ship
     this.lastAttackId = 0;
   // Unified history stack (LIFO) containing last 10 reversible events:

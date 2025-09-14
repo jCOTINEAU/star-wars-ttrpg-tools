@@ -6,6 +6,9 @@ const BattleState = require('./src/state');
 
 const PORT = process.env.PORT || 3010;
 const GLOBAL_RANGE_BANDS = [200, 400, 800, 1600, 3200];
+// Initial shared view centered roughly on logical coordinate 500:500
+// Centering: translate so that 500,500 appears near middle of viewport. We store offsets; client applies translate(offsetX, offsetY) then scale.
+// Positive offsetX moves map right; to bring (500,500) to center we shift left by 500*scale etc. We'll approximate; clients can re-center locally if viewport differs.
 let sharedView = { scale: 0.5, offsetX: 0, offsetY: 0 };
 
 const app = express();
