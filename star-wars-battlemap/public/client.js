@@ -244,10 +244,12 @@
 
   const SIL_TABLE = { 3:{w:1,h:1},4:{w:1,h:1},5:{w:2,h:1},6:{w:2,h:1},7:{w:3,h:2},8:{w:4,h:2},9:{w:5,h:2},10:{w:6,h:3} };
   function applySilhouette(el, ship) {
-    const s = SIL_TABLE[ship.silhouette] || SIL_TABLE[3];
-    const base = 64; // px per square
-    const wpx = s.w * base;
-    const hpx = s.h * base;
+  const s = SIL_TABLE[ship.silhouette] || SIL_TABLE[3];
+  const base = 64; // px per square
+  // Halve visual size for specific small craft icons (fighter, wing, shuttle)
+  const scaleFactor = (ship.icon && ['fighter','wing'].includes(ship.icon)) ? 0.5 : 1; // shuttle back to full size
+  const wpx = s.w * base * scaleFactor;
+  const hpx = s.h * base * scaleFactor;
     el.style.width = wpx + 'px';
     el.style.height = hpx + 'px';
     // Adjust directional shield depths so short edges project less
@@ -275,7 +277,9 @@
     }
     const hpBar = el.querySelector('.hpbar');
     if (hpBar) {
-      const target = Math.max(50, Math.min(350, wpx - 4));
+      // Keep bar within ship width; allow smaller minimum for scaled-down craft
+      const maxWidth = Math.max(0, wpx - 4);
+      const target = Math.max(scaleFactor < 1 ? 20 : 50, Math.min(350, maxWidth));
       hpBar.style.width = target + 'px';
     }
   }
