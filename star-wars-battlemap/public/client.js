@@ -30,6 +30,8 @@
   let scale = 0.5; // default starting zoom (fit bigger map)
   let offsetX = 0; // panning
   let offsetY = 0;
+  // Remember last logical coordinate (map space) the user clicked (ship or background) for focus-zoom
+  let lastFocus = null; // { x, y }
   const ZOOM_STEP = 0.1;
   const PAN_STEP = 200;
   const LONG_PRESS_MS = 1000; // 1 second hold for attack
@@ -406,6 +408,9 @@
     function pointerDown(e) {
       if (e.button !== undefined && e.button !== 0) return; // only left / primary
       e.stopPropagation();
+  // Set zoom focus to this ship's current logical position so zoom centers on it
+  const shipForFocus = ships.get(id);
+  if (shipForFocus) lastFocus = { x: shipForFocus.x, y: shipForFocus.y };
       longPressTriggered = false;
       dragging = false;
       startPos = { x: e.clientX, y: e.clientY };
@@ -533,8 +538,30 @@
 
   // UI controls
   function broadcastView(){ socket.emit('setView', { scale, offsetX, offsetY }); }
-  document.getElementById('zoomIn').onclick = () => { scale = clampScale(scale + ZOOM_STEP); applyView(); broadcastView(); };
-  document.getElementById('zoomOut').onclick = () => { scale = clampScale(scale - ZOOM_STEP); applyView(); broadcastView(); };
+  function applyZoomWithFocus(newScale) {
+    const prevScale = scale;
+    const nextScale = clampScale(newScale);
+    if (nextScale === prevScale) return;
+    if (lastFocus) {
+      // Keep lastFocus screen position stable: S = L*scale + offset
+      offsetX = offsetX + lastFocus.x * (prevScale - nextScale);
+      offsetY = offsetY + lastFocus.y * (prevScale - nextScale);
+    } else {
+      // Fallback: keep viewport center constant
+      const vpCX = window.innerWidth / 2;
+      // subtract top bar (~40px) so vertical center feels natural relative to map area
+      const vpCY = (window.innerHeight - 40) / 2;
+      const logicalCX = (vpCX - offsetX) / prevScale;
+      const logicalCY = (vpCY - offsetY) / prevScale;
+      offsetX = vpCX - logicalCX * nextScale;
+      offsetY = vpCY - logicalCY * nextScale;
+    }
+    scale = nextScale;
+    applyView();
+    broadcastView();
+  }
+  document.getElementById('zoomIn').onclick = () => { applyZoomWithFocus(scale + ZOOM_STEP); };
+  document.getElementById('zoomOut').onclick = () => { applyZoomWithFocus(scale - ZOOM_STEP); };
   document.getElementById('resetView').onclick = () => {
     scale = 0.5; // default zoom
     // Top-left shows logical 0,0
@@ -575,7 +602,12 @@
   });
 
   // Background click clears selection
-  mapEl.addEventListener('mousedown', () => { clearSelection(); });
+  mapEl.addEventListener('mousedown', (e) => {
+    // Record logical coordinate for focus-based zoom
+    const rect = mapEl.getBoundingClientRect();
+    lastFocus = { x: (e.clientX - rect.left)/scale, y: (e.clientY - rect.top)/scale };
+    clearSelection();
+  });
 
   // Modal handling
   cancelAttackBtn.addEventListener('click', () => { attackModal.classList.add('hidden'); pendingAttack = null; });
