@@ -52,6 +52,14 @@
   }
   function buildShipIconMarkup(ship) {
     const small = ship.silhouette && ship.silhouette <= 4;
+    const count = Math.max(1, Math.floor(ship.numberOf || 1));
+    if (count > 1) {
+      // Squad style icon wrapper; units populated later once SVG fetched
+      if (small) {
+        return `<div class="icon squad ${ship.icon}" title="${ship.name}" data-type="${ship.icon}" data-number="${count}"><div class="units"></div></div><div class="ship-name" data-inline-label="false">${ship.name}</div>`;
+      }
+      return `<div class="icon squad ${ship.icon}" title="${ship.name}" data-type="${ship.icon}" data-number="${count}"><div class="units"></div><div class="label">${ship.name}</div></div>`;
+    }
     if (small) {
       // Externalize label so SVG not obscured
       return `<div class="icon ${ship.icon}" title="${ship.name}" data-type="${ship.icon}"></div><div class="ship-name" data-inline-label="false">${ship.name}</div>`;
@@ -61,6 +69,11 @@
   async function ensureIconSvg(el, ship) {
     const icon = el.querySelector('.icon');
     if (!icon) return;
+    // Squad icons manage their own unit SVGs
+    if (icon.classList.contains('squad')) {
+      populateSquadUnits(icon, ship);
+      return;
+    }
     if (icon.querySelector('svg')) return;
     try {
       const raw = await fetchSvg(ship.icon);
@@ -81,6 +94,58 @@
         }
       }
     } catch(e) { /* silent */ }
+  }
+  function populateSquadUnits(icon, ship) {
+    const unitsBox = icon.querySelector('.units');
+    if (!unitsBox) return;
+    const desired = Math.max(1, Math.floor(ship.numberOf || 1));
+    const existing = unitsBox.querySelectorAll('.unit');
+    if (existing.length !== desired) {
+      unitsBox.innerHTML = '';
+      const s = SIL_TABLE[ship.silhouette] || SIL_TABLE[3];
+      const base = 64;
+      const scaleFactor = (ship.icon && ['fighter','wing'].includes(ship.icon)) ? 0.5 : 1;
+      const unitW = s.w * base * scaleFactor;
+      const unitH = s.h * base * scaleFactor;
+      let cols = 1, rows = 1;
+      if (desired > 1) cols = 2;
+      if (desired > 2) rows = 2;
+      for (let i=0;i<desired;i++) {
+        const col = i % cols;
+        const row = Math.floor(i / cols);
+        const u = document.createElement('div');
+        u.className = 'unit';
+        u.style.position = 'absolute';
+        u.style.width = unitW + 'px';
+        u.style.height = unitH + 'px';
+        u.style.left = (col * unitW) + 'px';
+        u.style.top = (row * unitH) + 'px';
+        unitsBox.appendChild(u);
+      }
+      fetchSvg(ship.icon).then(raw => {
+        const svgMarkup = raw.replace('<svg', '<svg class="ship-svg"');
+        unitsBox.querySelectorAll('.unit').forEach(u => { u.innerHTML = svgMarkup; });
+        if (perfMode) {
+          unitsBox.querySelectorAll('svg').forEach(svg => {
+            const removeSelectors = ['.engine-glow', '.plating', '.highlight', '.panel-lines .highlight'];
+            removeSelectors.forEach(sel => svg.querySelectorAll(sel).forEach(n => n.remove()));
+            svg.querySelectorAll('[style]').forEach(n => { if (/animation|filter|blur/.test(n.getAttribute('style'))) n.removeAttribute('style'); });
+          });
+        }
+        updateSquadVisibility(icon, ship);
+      }).catch(()=>{});
+    } else {
+      updateSquadVisibility(icon, ship);
+    }
+  }
+  function updateSquadVisibility(icon, ship) {
+    const count = Math.max(1, Math.floor(ship.numberOf || 1));
+    const segment = ship.maxHp > 0 ? ship.maxHp / count : 1;
+    const visible = Math.min(count, Math.max(0, Math.ceil((ship.hp || 0) / segment)));
+    const units = icon.querySelectorAll('.unit');
+    units.forEach((u, idx) => {
+      u.style.display = (idx < visible) ? 'block' : 'none';
+    });
   }
   function initStarfield(width, height) {
   if (perfMode) return; // disabled in performance mode
@@ -224,6 +289,9 @@
     const hpPct = Math.max(0, ship.hp) / ship.maxHp;
     el.querySelector('.hp').style.width = (hpPct*100)+'%';
     el.querySelector('.hp').style.background = hpPct < 0.3 ? '#ff4242' : hpPct < 0.6 ? '#ffc107' : '#3df969';
+  // Also update squad visibility if applicable
+  const icon = el.querySelector('.icon.squad');
+  if (icon) updateSquadVisibility(icon, ship);
   }
 
   function updateSpeed(el, ship) {
@@ -246,43 +314,42 @@
   function applySilhouette(el, ship) {
   const s = SIL_TABLE[ship.silhouette] || SIL_TABLE[3];
   const base = 64; // px per square
-  // Halve visual size for specific small craft icons (fighter, wing, shuttle)
-  const scaleFactor = (ship.icon && ['fighter','wing'].includes(ship.icon)) ? 0.5 : 1; // shuttle back to full size
-  const wpx = s.w * base * scaleFactor;
-  const hpx = s.h * base * scaleFactor;
-    el.style.width = wpx + 'px';
-    el.style.height = hpx + 'px';
-    // Adjust directional shield depths so short edges project less
-    // Depth as percentage of the perpendicular dimension
-    const baseDepthPct = 32; // depth for long edges
-    const shortDepth = 18;    // reduced depth for short edges
-    if (wpx > hpx) {
-      // Wider: top/bottom edges are the long edges (width); left/right are short
-      el.style.setProperty('--shield-depth-up', baseDepthPct + '%');
-      el.style.setProperty('--shield-depth-down', baseDepthPct + '%');
-      el.style.setProperty('--shield-depth-left', shortDepth + '%');
-      el.style.setProperty('--shield-depth-right', shortDepth + '%');
-    } else if (hpx > wpx) {
-      // Taller: left/right edges are the long edges (height); top/bottom are short
-      el.style.setProperty('--shield-depth-left', baseDepthPct + '%');
-      el.style.setProperty('--shield-depth-right', baseDepthPct + '%');
-      el.style.setProperty('--shield-depth-up', shortDepth + '%');
-      el.style.setProperty('--shield-depth-down', shortDepth + '%');
-    } else {
-      // Square
-      el.style.setProperty('--shield-depth-up', baseDepthPct + '%');
-      el.style.setProperty('--shield-depth-down', baseDepthPct + '%');
-      el.style.setProperty('--shield-depth-left', baseDepthPct + '%');
-      el.style.setProperty('--shield-depth-right', baseDepthPct + '%');
-    }
-    const hpBar = el.querySelector('.hpbar');
-    if (hpBar) {
-      // Keep bar within ship width; allow smaller minimum for scaled-down craft
-      const maxWidth = Math.max(0, wpx - 4);
-      const target = Math.max(scaleFactor < 1 ? 20 : 50, Math.min(350, maxWidth));
-      hpBar.style.width = target + 'px';
-    }
+  const scaleFactor = (ship.icon && ['fighter','wing'].includes(ship.icon)) ? 0.5 : 1; // individual craft size adjustments
+  const unitW = s.w * base * scaleFactor;
+  const unitH = s.h * base * scaleFactor;
+  const count = Math.max(1, ship.numberOf || 1);
+  let cols = 1, rows = 1;
+  if (count > 1) cols = 2;
+  if (count > 2) rows = 2; // 2x2 formation for up to 4
+  const wpx = unitW * cols;
+  const hpx = unitH * rows;
+  el.style.width = wpx + 'px';
+  el.style.height = hpx + 'px';
+  const baseDepthPct = 32;
+  const shortDepth = 18;
+  if (wpx > hpx) {
+    el.style.setProperty('--shield-depth-up', baseDepthPct + '%');
+    el.style.setProperty('--shield-depth-down', baseDepthPct + '%');
+    el.style.setProperty('--shield-depth-left', shortDepth + '%');
+    el.style.setProperty('--shield-depth-right', shortDepth + '%');
+  } else if (hpx > wpx) {
+    el.style.setProperty('--shield-depth-left', baseDepthPct + '%');
+    el.style.setProperty('--shield-depth-right', baseDepthPct + '%');
+    el.style.setProperty('--shield-depth-up', shortDepth + '%');
+    el.style.setProperty('--shield-depth-down', shortDepth + '%');
+  } else {
+    el.style.setProperty('--shield-depth-up', baseDepthPct + '%');
+    el.style.setProperty('--shield-depth-down', baseDepthPct + '%');
+    el.style.setProperty('--shield-depth-left', baseDepthPct + '%');
+    el.style.setProperty('--shield-depth-right', baseDepthPct + '%');
   }
+  const hpBar = el.querySelector('.hpbar');
+  if (hpBar) {
+    const maxWidth = Math.max(0, wpx - 4);
+    const target = Math.max(scaleFactor < 1 ? 20 : 50, Math.min(350, maxWidth));
+    hpBar.style.width = target + 'px';
+  }
+}
 
   function updateHeading(el, ship) {
     if (!el) return;
@@ -673,6 +740,7 @@
     shipForm.name.value = ship.name;
     shipForm.hp.value = ship.hp;
     shipForm.maxHp.value = ship.maxHp;
+  if (shipForm.numberOf) shipForm.numberOf.value = ship.numberOf || 1;
     shipForm.speed.value = ship.speed ?? 0;
   if (shipForm.silhouette) shipForm.silhouette.value = ship.silhouette || 3;
   shipForm.showHp.checked = !!ship.showHp;
@@ -714,6 +782,7 @@
         name: shipForm.name.value.trim(),
         hp: Number(shipForm.hp.value),
         maxHp: Number(shipForm.maxHp.value),
+  numberOf: shipForm.numberOf ? Number(shipForm.numberOf.value) : undefined,
         speed: Number(shipForm.speed.value)
   ,showHp: shipForm.showHp.checked
   ,showSpeed: shipForm.showSpeed.checked
@@ -752,6 +821,7 @@
           shipForm.name.value = s.name;
           shipForm.hp.value = s.hp;
           shipForm.maxHp.value = s.maxHp;
+          if (shipForm.numberOf) shipForm.numberOf.value = s.numberOf || 1;
           shipForm.speed.value = s.speed ?? 0;
           shipForm.showHp.checked = !!s.showHp;
           shipForm.showSpeed.checked = !!s.showSpeed;
@@ -774,6 +844,27 @@
         }
   const el = document.getElementById('ship-'+s.id);
         if (el) { updateSpeed(el, s); applyVisibilityFlags(el, s); }
+  // If count changed, rebuild icon markup to adjust units
+  if (el && el.querySelector('.icon')) {
+    const iconWrap = el.querySelector('.icon');
+    const currentCount = iconWrap.classList.contains('squad');
+    const wantSquad = (s.numberOf||1) > 1;
+    if (currentCount !== wantSquad) {
+      // Replace inner rot content except hp/speed bars
+      const rot = el.querySelector('.rot');
+      if (rot) {
+        // Rebuild from scratch for simplicity
+        const bars = rot.querySelector('.hpbar');
+        const speedEl = rot.querySelector('.speed');
+        const rangeRings = rot.querySelector('.range-rings');
+        rot.innerHTML = buildShipIconMarkup(s) + (bars?bars.outerHTML:'') + (speedEl?speedEl.outerHTML:'') + (rangeRings?rangeRings.outerHTML:'');
+        ensureIconSvg(el, s);
+      }
+    } else if (wantSquad) {
+      // Update squad units without rebuild
+      ensureIconSvg(el, s);
+    }
+  }
   if (el) applySilhouette(el, s);
   if (el) updateShieldArcs(el, s);
         setTimeout(() => { if (shipFormStatus.textContent === 'Saved') shipFormStatus.textContent=''; }, 1500);

@@ -139,7 +139,7 @@ class BattleState {
   updateShip(id, patch) {
     const ship = this.ships.get(id);
     if (!ship) return { error: 'Not found' };
-  const allowed = ['name','hp','maxHp','speed','x','y','showHp','showSpeed','showShield','shield','silhouette','heading'];
+  const allowed = ['name','hp','maxHp','speed','x','y','showHp','showSpeed','showShield','shield','silhouette','heading','numberOf'];
     for (const k of Object.keys(patch)) {
       if (allowed.includes(k) && patch[k] !== undefined) {
         if (k === 'speed') {
@@ -153,6 +153,10 @@ class BattleState {
   else if (k === 'shield') ship[k] = normalizeShield(patch[k]);
   else if (k === 'silhouette') ship[k] = clampSilhouette(patch[k]);
   else if (k === 'heading') ship[k] = clampHeading(patch[k]);
+  else if (k === 'numberOf') {
+    const n = Math.max(1, Math.min(16, Math.round(Number(patch[k])||1)));
+    ship[k] = n;
+  }
         else ship[k] = patch[k];
       }
     }

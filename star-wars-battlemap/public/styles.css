@@ -28,6 +28,12 @@ body { margin:0; font-family: system-ui, sans-serif; background:#060a10; color:#
 .ship.dragging { cursor:grabbing; }
 .ship .icon { position:relative; width:100%; height:100%; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:12px; text-align:center; padding:0; font-weight:600; overflow:hidden; }
 .ship .icon .label { position:absolute; inset:auto 2px 2px 2px; font-size:11px; background:rgba(0,0,0,0.35); padding:1px 3px; border-radius:3px; pointer-events:none; backdrop-filter:blur(2px); }
+/* Squad (multiple craft) support */
+ .ship .icon.squad { position:relative; }
+ .ship .icon.squad .units { position:absolute; inset:0; }
+ .ship .icon.squad .unit { position:absolute; }
+ .ship .icon.squad .unit svg { width:100%; height:100%; display:block; }
+/* If more than 4 someday, they will overflow; current design supports up to 4 visually */
 /* External small-ship name (placed outside icon to not obscure SVG) */
 .ship .ship-name { position:absolute; left:50%; transform:translateX(-50%); bottom:-8px; font-size:11px; font-weight:600; background:rgba(0,0,0,0.35); padding:1px 4px; border-radius:3px; pointer-events:none; backdrop-filter:blur(2px); white-space:nowrap; }
 /* Reposition hp bar & speed further down for small silhouettes so name sits directly under icon */
