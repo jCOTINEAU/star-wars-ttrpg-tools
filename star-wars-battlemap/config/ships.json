@@ -60,4 +60,20 @@
     "showSpeed": false,
     "shield": { "type": "bilateral", "front": 2, "back": 1 }
   }
+  ,
+  {
+    "id": "ship5",
+    "name": "Wing Interceptor",
+    "icon": "wing",
+    "x": 900,
+    "y": 1000,
+    "hp": 16,
+    "maxHp": 16,
+    "speed": 6,
+    "silhouette": 3,
+    "heading": 0,
+    "showHp": false,
+    "showSpeed": false,
+    "shield": { "type": "bilateral", "front": 1, "back": 1 }
+  }
 ]

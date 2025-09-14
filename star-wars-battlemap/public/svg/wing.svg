@@ -1,0 +1,31 @@
+<svg viewBox="0 0 110 120" xmlns="http://www.w3.org/2000/svg">
+  <title>Wing</title>
+  <!-- Copied from silhouette3.svg (renamed) -->
+  <g class="hull" stroke-width="2" stroke-linejoin="round" stroke-linecap="round">
+    <g class="body">
+  <path class="primary" d="M13 52 L94 56 Q102 60 94 64 L13 68 Q5 60 13 52 Z" fill="#2c4b9c" stroke="#6da0ff" />
+      <path class="cockpit" d="M44 66.3 L44 53.7 L58 54.4 Q60 60 58 65.6 Z" fill="#20304a" stroke="#6da0ff" stroke-width="1.6" />
+      <path class="window" d="M46 64.8 L46 54.6 L56 55.0 Q57 60 56 64.4 Z" fill="#cfe3ff" stroke="#ffffff" stroke-width="0.9" />
+      <g class="wings" fill="#355d9e" stroke="#6da0ff" stroke-width="1.6">
+        <path class="wing upper" d="M42 52.6 L20 52.6 L32.8 24.6 L42 24.6 Z" />
+        <path class="wing lower" d="M42 67.4 L20 67.4 L32.9 96 L42 96 Z" />
+      </g>
+      <g class="engines" stroke-linejoin="round" stroke-linecap="round">
+        <rect class="engine-tube upper" x="14" y="36.6" width="6" height="4" fill="#20304a" stroke="#6da0ff" />
+        <rect class="engine-body upper" x="17" y="34.6" width="26" height="8" rx="2" ry="2" fill="#27426f" stroke="#6da0ff" />
+        <circle class="engine-glow upper" cx="15.5" cy="38.6" r="4" fill="#ffcf66" opacity="0.55" />
+        <circle class="engine-core upper" cx="15.5" cy="38.6" r="1.8" fill="#fff0d1" stroke="#ffffff" stroke-width="0.6" />
+        <rect class="engine-tube lower" x="14" y="79.6" width="6" height="4" fill="#20304a" stroke="#6da0ff" />
+        <rect class="engine-body lower" x="17" y="77.6" width="26" height="8" rx="2" ry="2" fill="#27426f" stroke="#6da0ff" />
+        <circle class="engine-glow lower" cx="15.5" cy="81.6" r="4" fill="#ffcf66" opacity="0.55" />
+        <circle class="engine-core lower" cx="15.5" cy="81.6" r="1.8" fill="#fff0d1" stroke="#ffffff" stroke-width="0.6" />
+      </g>
+      <g class="cannons" fill="#20304a" stroke="#6da0ff" stroke-width="1.2" stroke-linecap="round">
+        <line class="cannon-barrel upper" x1="42" y1="24.6" x2="62.6" y2="24.6" />
+  <path class="cannon-muzzle upper" d="M63.6 22.8 A1.8 1.8 0 0 0 63.6 26.4" fill="none" />
+        <line class="cannon-barrel lower" x1="42" y1="96" x2="62.6" y2="96" />
+  <path class="cannon-muzzle lower" d="M63.6 94.2 A1.8 1.8 0 0 0 63.6 97.8" fill="none" />
+      </g>
+    </g>
+  </g>
+</svg>

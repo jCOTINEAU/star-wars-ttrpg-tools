@@ -40,6 +40,8 @@ body { margin:0; font-family: system-ui, sans-serif; background:#060a10; color:#
 .icon.corvette { --c-base:#2c4b9c; --c-accent:#6da0ff; --c-panel:#203563; --c-glow:rgba(145,200,255,0.55); --hull-panel-a:color-mix(in srgb,#2c4b9c 80%,#ffffff); --hull-panel-b:color-mix(in srgb,#2c4b9c 55%,#000); --hull-highlight:#d8edff; --hull-window:#cfe3ff; --hull-weapon:#1c283d; --engine-core:#fff0d1; --engine-glow:#ffcf66; }
 /* Shuttle palette (reuse frigate/fighter pink palette) */
 .icon.shuttle { --c-base:#7a3146; --c-accent:#ff8ca8; --c-panel:#552331; --c-glow:rgba(255,140,168,0.5); --hull-base:var(--c-base); --hull-accent:var(--c-accent); --hull-panel:var(--c-panel); --hull-panel-a:color-mix(in srgb,#7a3146 80%,#ffffff); --hull-panel-b:color-mix(in srgb,#7a3146 55%,#000); --hull-highlight:#ffd6e2; --hull-window:#ffe4ef; --hull-weapon:#45202c; --engine-core:#ffe2f1; --engine-glow:#ff7eb8; }
+/* Wing interceptor uses corvette blue palette */
+.icon.wing { --c-base:#2c4b9c; --c-accent:#6da0ff; --c-panel:#203563; --c-glow:rgba(145,200,255,0.55); --hull-panel-a:color-mix(in srgb,#2c4b9c 80%,#ffffff); --hull-panel-b:color-mix(in srgb,#2c4b9c 55%,#000); --hull-highlight:#d8edff; --hull-window:#cfe3ff; --hull-weapon:#1c283d; --engine-core:#fff0d1; --engine-glow:#ffcf66; }
 
 /* Background subtle gradient */
 .ship .icon { background:linear-gradient(135deg, rgba(255,255,255,0.05), rgba(0,0,0,0.4)), #0f1923; border:2px solid var(--c-accent); box-shadow:0 0 6px 2px var(--c-glow) inset, 0 0 8px -2px var(--c-accent); }
