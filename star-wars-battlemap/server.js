@@ -33,14 +33,14 @@ app.get('/api/state', (req, res) => {
 app.post('/api/save-state', (req, res) => {
   // Simple admin gate: require ?admin=true
   if (req.query.admin !== 'true') return res.status(403).json({ error: 'Forbidden' });
-  const outPath = path.join(__dirname, 'config', 'ships_ongoing.json');
+  const outPath = path.join(__dirname, 'config', 'ships.json');
   try {
     const shipsArr = Array.from(state.ships.values()).map(s => {
       const { id, name, icon, x, y, hp, maxHp, speed, silhouette, heading, showHp, showSpeed, showShield, shield, numberOf, hideFromViewer } = s;
       return { id, name, icon, x, y, hp, maxHp, speed, silhouette, heading, showHp, showSpeed, showShield, shield, numberOf, hideFromViewer };
     });
     fs.writeFileSync(outPath, JSON.stringify(shipsArr, null, 2), 'utf-8');
-    res.json({ ok: true, file: 'config/ships_ongoing.json' });
+    res.json({ ok: true, file: 'config/ships.json' });
   } catch (e) {
     res.status(500).json({ error: e.message });
   }
@@ -86,6 +86,17 @@ io.on('connection', socket => {
     const created = state.createShip(data);
     io.emit('shipMoved', created);
     socket.emit('shipCreateResult', { ok: true, ship: created });
+  });
+
+  socket.on('deleteShip', (id) => {
+    if (typeof id !== 'string') return;
+    const res = state.deleteShip(id);
+    if (res && res.ok) {
+      io.emit('shipDeleted', { id });
+      socket.emit('shipDeleteResult', res);
+    } else {
+      socket.emit('shipDeleteResult', res || { error: 'Unknown error' });
+    }
   });
 
   socket.on('undoMove', () => {

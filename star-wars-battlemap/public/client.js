@@ -15,6 +15,7 @@
   const closePanelBtn = document.getElementById('closePanel');
   const shipFormStatus = document.getElementById('shipFormStatus');
   const createShipBtn = document.getElementById('createShip');
+  const deleteShipBtn = document.getElementById('deleteShip');
   let panelShipId = null;
   const attackForm = document.getElementById('attackForm');
   const damageInput = document.getElementById('damageInput');
@@ -33,6 +34,8 @@
   let offsetY = 0;
   // Remember last logical coordinate (map space) the user clicked (ship or background) for focus-zoom
   let lastFocus = null; // { x, y }
+  // Admin clipboard for ship duplication
+  let clipboardShip = null; // stores a snapshot of last copied ship (without id)
   const ZOOM_STEP = 0.1;
   const PAN_STEP = 200;
   const LONG_PRESS_MS = 1000; // 1 second hold for attack
@@ -698,6 +701,66 @@
 
   // Keyboard arrow key panning
   window.addEventListener('keydown', (e) => {
+    // Ignore when typing inside inputs/textareas to not hijack normal copy/paste
+    const active = document.activeElement;
+    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || active.isContentEditable)) return;
+    // Admin copy / paste (duplicate ship)
+    if (isAdmin && (e.metaKey || e.ctrlKey)) {
+      const key = e.key.toLowerCase();
+      if (key === 'c' && selectedShipId) {
+        const src = ships.get(selectedShipId);
+        if (src) {
+          // Snapshot excluding id & position (position stored separately)
+          clipboardShip = {
+            name: src.name,
+            icon: src.icon,
+            hp: src.hp,
+            maxHp: src.maxHp,
+            numberOf: src.numberOf,
+            speed: src.speed,
+            silhouette: src.silhouette,
+            heading: src.heading,
+            shield: src.shield ? JSON.parse(JSON.stringify(src.shield)) : null,
+            showHp: src.showHp,
+            showSpeed: src.showSpeed,
+            showShield: src.showShield,
+            hideFromViewer: src.hideFromViewer,
+            srcX: src.x,
+            srcY: src.y
+          };
+          if (shipFormStatus) { shipFormStatus.textContent = 'Copied'; shipFormStatus.style.color = '#8bc34a'; setTimeout(()=>{ if (shipFormStatus.textContent==='Copied') shipFormStatus.textContent=''; }, 900); }
+          e.preventDefault();
+          return;
+        }
+      } else if (key === 'v' && clipboardShip) {
+        // Decide spawn position: lastFocus (logical) if available, else offset from source
+        let spawnX, spawnY;
+        if (lastFocus) { spawnX = Math.round(lastFocus.x); spawnY = Math.round(lastFocus.y); }
+        else { spawnX = Math.min(mapEl.offsetWidth || 8000, clipboardShip.srcX + 60); spawnY = Math.min(mapEl.offsetHeight || 6000, clipboardShip.srcY + 60); }
+        const newName = /\(copy\)$/.test(clipboardShip.name) ? clipboardShip.name : clipboardShip.name + ' (copy)';
+        const payload = {
+          name: newName,
+          icon: clipboardShip.icon,
+          hp: clipboardShip.hp,
+            maxHp: clipboardShip.maxHp,
+            numberOf: clipboardShip.numberOf,
+            speed: clipboardShip.speed,
+            silhouette: clipboardShip.silhouette,
+            heading: clipboardShip.heading,
+            shield: clipboardShip.shield,
+            showHp: clipboardShip.showHp,
+            showSpeed: clipboardShip.showSpeed,
+            showShield: clipboardShip.showShield,
+            hideFromViewer: clipboardShip.hideFromViewer,
+            x: spawnX,
+            y: spawnY
+        };
+        socket.emit('createShip', payload);
+        if (shipFormStatus) { shipFormStatus.textContent = 'Pasting...'; shipFormStatus.style.color = '#8bc34a'; setTimeout(()=>{ if (shipFormStatus.textContent==='Pasting...') shipFormStatus.textContent=''; }, 1200); }
+        e.preventDefault();
+        return;
+      }
+    }
     const ROT_STEP = 15; // degrees per key press
     if (selectedShipId && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
       const ship = ships.get(selectedShipId);
@@ -856,6 +919,15 @@
         // Store temp coordinates on form dataset for create
   shipForm.dataset.createX = spawnX;
   shipForm.dataset.createY = spawnY;
+      };
+    }
+    if (deleteShipBtn) {
+      deleteShipBtn.onclick = () => {
+        if (!panelShipId || panelShipId === '__new__') return;
+        if (!confirm('Delete this ship?')) return;
+        socket.emit('deleteShip', panelShipId);
+        shipFormStatus.textContent = 'Deleting...';
+        shipFormStatus.style.color = '#ff9966';
       };
     }
     function toggleShieldMode(mode) {
@@ -1026,6 +1098,28 @@
         shipForm.dataset.createY = '';
         setTimeout(()=>{ if (shipFormStatus.textContent === 'Created') shipFormStatus.textContent=''; }, 1500);
       }
+    });
+
+    socket.on('shipDeleteResult', (res) => {
+      if (res.error) {
+        shipFormStatus.textContent = res.error;
+        shipFormStatus.style.color = '#ff6666';
+        return;
+      }
+      if (res.ok) {
+        shipFormStatus.textContent = 'Deleted';
+        shipFormStatus.style.color = '#ff6666';
+        // Close panel
+        setTimeout(()=>{ hideShipPanel(); shipFormStatus.textContent=''; }, 600);
+      }
+    });
+
+    socket.on('shipDeleted', ({ id }) => {
+      // Remove from local map and DOM
+      ships.delete(id);
+      const el = document.getElementById('ship-'+id);
+      if (el && el.parentNode) el.parentNode.removeChild(el);
+      if (selectedShipId === id) clearSelection();
     });
 
     function buildShieldFromForm() {

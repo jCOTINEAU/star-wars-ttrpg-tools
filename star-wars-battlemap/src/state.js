@@ -34,7 +34,7 @@ class BattleState {
   this.mapHeight = 6000;
     this.ships = new Map(); // id -> ship
     this.lastAttackId = 0;
-  this._idCounter = 1;
+  this._idCounter = 1; // will be bumped after loading existing ships
   // Unified history stack (LIFO) containing last 10 reversible events:
   //  - move:   { type:'move', id, from:{x,y}, to:{x,y} }
   //  - speed:  { type:'speed', id, from:number, to:number }
@@ -54,6 +54,16 @@ class BattleState {
   const hideFromViewer = s.hideFromViewer !== undefined ? !!s.hideFromViewer : true; // default true
   this.ships.set(s.id, { speed: 0, showHp: false, showSpeed: false, showShield: false, silhouette, heading, hideFromViewer, ...s, shield });
     });
+    // Initialize id counter above any existing S-prefixed numeric ids
+    let maxNum = 0;
+    for (const id of this.ships.keys()) {
+      const m = /^S(\d+)$/.exec(id);
+      if (m) {
+        const n = parseInt(m[1], 10);
+        if (n > maxNum) maxNum = n;
+      }
+    }
+    this._idCounter = maxNum + 1;
   }
 
   getState() {
@@ -173,8 +183,8 @@ class BattleState {
   }
 
   createShip(data) {
-    // Basic defaults
-    const id = data.id && !this.ships.has(data.id) ? String(data.id) : `S${this._idCounter++}`;
+  // Always allocate a fresh unique id (ignore provided id to avoid collisions)
+  const id = this._allocateId();
     const name = data.name ? String(data.name) : 'New Ship';
     const icon = data.icon ? String(data.icon) : 'fighter';
     const x = Number.isFinite(Number(data.x)) ? Math.max(0, Math.min(this.mapWidth, Number(data.x))) : Math.round(this.mapWidth/2);
@@ -193,6 +203,23 @@ class BattleState {
     const ship = { id, name, icon, x, y, hp, maxHp, speed, silhouette, heading, numberOf, hideFromViewer, showHp, showSpeed, showShield, shield };
     this.ships.set(id, ship);
     return { ...ship };
+  }
+
+  deleteShip(id) {
+    if (!this.ships.has(id)) return { error: 'Not found' };
+    const ship = this.ships.get(id);
+    this.ships.delete(id);
+    // Optionally prune history entries referencing this id (keep simple for now)
+    this.history = this.history.filter(h => h.id !== id);
+    return { ok: true, id };
+  }
+
+  _allocateId() {
+    // Simple incremental scheme with collision safeguard
+    while (true) {
+      const id = 'S' + this._idCounter++;
+      if (!this.ships.has(id)) return id;
+    }
   }
 
   _pushHistory(entry) {
