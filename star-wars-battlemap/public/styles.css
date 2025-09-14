@@ -38,8 +38,10 @@ body { margin:0; font-family: system-ui, sans-serif; background:#060a10; color:#
 .ship .ship-name { position:absolute; left:50%; transform:translateX(-50%); bottom:-8px; font-size:11px; font-weight:600; background:rgba(0,0,0,0.35); padding:1px 4px; border-radius:3px; pointer-events:none; backdrop-filter:blur(2px); white-space:nowrap; }
 .ship .ship-name[data-hidden="true"], .ship .icon .label[data-hidden="true"] { color:#ff4d4d; text-shadow:0 0 4px #600; }
 /* Reposition hp bar & speed further down for small silhouettes so name sits directly under icon */
+/* Adjust for reordered bars (strain closer to hull, hp below) */
+.ship[data-silhouette="3"] .strainbar, .ship[data-silhouette="4"] .strainbar { bottom:-12px; }
 .ship[data-silhouette="3"] .hpbar, .ship[data-silhouette="4"] .hpbar { bottom:-22px; }
-.ship[data-silhouette="3"] .speed, .ship[data-silhouette="4"] .speed { bottom:-36px; }
+.ship[data-silhouette="3"] .speed, .ship[data-silhouette="4"] .speed { bottom:-38px; }
 /* Color themes applied to strokes/fills via CSS variables for consistency */
 .icon { --c-base:#2c4b9c; --c-accent:#6da0ff; --c-panel:#203563; --c-glow:rgba(145,200,255,0.55); --hull-base:var(--c-base); --hull-accent:var(--c-accent); --hull-panel:var(--c-panel); --hull-panel-a:color-mix(in srgb,var(--c-base) 85%,#ffffff); --hull-panel-b:color-mix(in srgb,var(--c-base) 65%,#000000); --hull-highlight:#cfe8ff; --hull-window:#bfe5ff; --hull-weapon:#303845; --engine-core:#ffe9b5; --engine-glow:#ffb347; }
 .icon.frigate { --c-base:#7a3146; --c-accent:#ff8ca8; --c-panel:#552331; --c-glow:rgba(255,140,168,0.5); --hull-panel-a:color-mix(in srgb,#7a3146 80%,#ffffff); --hull-panel-b:color-mix(in srgb,#7a3146 55%,#000); --hull-highlight:#ffd6e2; --hull-window:#ffe4ef; --hull-weapon:#45202c; --engine-core:#ffe2f1; --engine-glow:#ff7eb8; }
@@ -85,8 +87,12 @@ body.perf .icon.shuttle .ship-svg { transform:rotate(90deg); }
 
 /* Slight glow on hover (admin only) */
 body:not(.viewer) .ship .icon:hover { filter:brightness(1.15); }
-.ship .hpbar { position:absolute; bottom:-8px; left:50%; transform:translateX(-50%); width:70px; height:6px; background:#222; border:1px solid #555; }
+/* Strain bar (top), HP bar (below) */
+.ship .strainbar { position:absolute; bottom:-8px; left:50%; transform:translateX(-50%); width:70px; height:4px; background:#132235; border:1px solid #224a7a; }
+.ship .strainbar .strain { height:100%; background:linear-gradient(90deg,#2196f3,#64b5f6); transition:width .2s; }
+.ship .hpbar { position:absolute; bottom:-16px; left:50%; transform:translateX(-50%); width:70px; height:6px; background:#222; border:1px solid #555; }
 .ship .hpbar .hp { height:100%; background:#3df969; transition:width .2s; }
+.viewer .ship:not([data-show-strain="true"]) .strainbar { display:none !important; }
 .ship .speed { position:absolute; bottom:-22px; left:50%; transform:translateX(-50%); font-size:11px; font-family:monospace; letter-spacing:1px; color:#ccc; opacity:0.9; }
 .viewer .ship:not([data-show-speed="true"]) .speed { display:none !important; }
 .ship.selected .icon { box-shadow:0 0 8px 4px #ffd43d; }

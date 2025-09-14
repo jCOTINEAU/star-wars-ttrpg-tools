@@ -254,7 +254,8 @@
       el.className = 'ship';
       el.innerHTML = `<div class="rot">`+
         buildShipIconMarkup(ship) +
-        `<div class="hpbar"><div class="hp"></div></div>` +
+  `<div class="hpbar"><div class="hp"></div></div>` +
+  `<div class="strainbar"><div class="strain"></div></div>` +
         `<div class="speed"></div>` +
         `<div class="range-rings"></div>`+
       `</div>`;
@@ -275,7 +276,8 @@
     }
     positionShipEl(el, ship);
   applySilhouette(el, ship);
-    updateHpBar(el, ship);
+  updateHpBar(el, ship);
+  updateStrainBar(el, ship);
     updateSpeed(el, ship);
   applyVisibilityFlags(el, ship);
   updateHiddenName(el, ship);
@@ -306,6 +308,13 @@
   if (icon) updateSquadVisibility(icon, ship);
   }
 
+  function updateStrainBar(el, ship) {
+    const sb = el.querySelector('.strainbar .strain');
+    if (!sb || !ship || !ship.maxStrain) return;
+    const pct = Math.max(0, Math.min(1, ship.strain / ship.maxStrain));
+    sb.style.width = (pct*100)+'%';
+  }
+
   function updateSpeed(el, ship) {
     const speedEl = el.querySelector('.speed');
     if (!speedEl) return;
@@ -316,7 +325,8 @@
   function applyVisibilityFlags(el, ship) {
     if (!el) return;
     if (ship.showHp) el.setAttribute('data-show-hp', 'true'); else el.removeAttribute('data-show-hp');
-    if (ship.showSpeed) el.setAttribute('data-show-speed', 'true'); else el.removeAttribute('data-show-speed');
+  if (ship.showSpeed) el.setAttribute('data-show-speed', 'true'); else el.removeAttribute('data-show-speed');
+  if (ship.showStrain) el.setAttribute('data-show-strain', 'true'); else el.removeAttribute('data-show-strain');
     if (ship.showShield) el.setAttribute('data-show-shield', 'true'); else el.removeAttribute('data-show-shield');
     if (ship.silhouette) el.setAttribute('data-silhouette', ship.silhouette);
   if (typeof ship.heading === 'number') el.setAttribute('data-heading', ship.heading);
@@ -371,6 +381,13 @@
       const minBase = iconScale < 1 ? 20 : 50;
       const target = Math.max(minBase, Math.min(400, maxWidth));
       hpBar.style.width = target + 'px';
+    }
+    const strainBar = el.querySelector('.strainbar');
+    if (strainBar) {
+      const maxWidth = Math.max(0, wpx - 4);
+      const minBase = iconScale < 1 ? 20 : 50;
+      const target = Math.max(minBase, Math.min(400, maxWidth));
+      strainBar.style.width = target + 'px';
     }
   }
 
@@ -633,7 +650,7 @@
     if (target) {
       target.hp = res.remainingHp;
       const el = document.getElementById('ship-'+target.id);
-      if (el) updateHpBar(el, target);
+  if (el) { updateHpBar(el, target); updateStrainBar(el, target); }
       if (target.id === selectedShipId) {
         selectedInfo.textContent = `Selected: ${target.name} (HP ${target.hp}/${target.maxHp})`;
       }
@@ -864,12 +881,15 @@
   if (shipForm.icon) shipForm.icon.value = ship.icon || 'fighter';
     shipForm.hp.value = ship.hp;
     shipForm.maxHp.value = ship.maxHp;
+  if (shipForm.strain) shipForm.strain.value = ship.strain || 0;
+  if (shipForm.maxStrain) shipForm.maxStrain.value = ship.maxStrain || 0;
   if (shipForm.numberOf) shipForm.numberOf.value = ship.numberOf || 1;
     shipForm.speed.value = ship.speed ?? 0;
   if (shipForm.silhouette) shipForm.silhouette.value = ship.silhouette || 3;
   shipForm.showHp.checked = !!ship.showHp;
   shipForm.showSpeed.checked = !!ship.showSpeed;
   if (shipForm.showShield) shipForm.showShield.checked = !!ship.showShield;
+  if (shipForm.showStrain) shipForm.showStrain.checked = !!ship.showStrain;
   if (shipForm.hideFromViewer) shipForm.hideFromViewer.checked = !!ship.hideFromViewer;
     // Shield fields
     const st = ship.shield?.type || 'none';
@@ -913,12 +933,15 @@
         if (shipForm.icon) shipForm.icon.value = 'fighter';
         shipForm.hp.value = 1;
         shipForm.maxHp.value = 1;
+  if (shipForm.strain) shipForm.strain.value = 0;
+  if (shipForm.maxStrain) shipForm.maxStrain.value = 0;
         if (shipForm.numberOf) shipForm.numberOf.value = 1;
         shipForm.speed.value = 0;
         if (shipForm.silhouette) shipForm.silhouette.value = 3;
         shipForm.showHp.checked = false;
         shipForm.showSpeed.checked = false;
         if (shipForm.showShield) shipForm.showShield.checked = false;
+  if (shipForm.showStrain) shipForm.showStrain.checked = false;
         if (shipForm.hideFromViewer) shipForm.hideFromViewer.checked = true;
         shipForm.shieldType.value = 'none';
         const biBox = shipForm.querySelector('[data-shield-mode="bilateral"]');
@@ -958,12 +981,15 @@
           icon: shipForm.icon ? shipForm.icon.value : 'fighter',
           hp: Number(shipForm.hp.value)||1,
           maxHp: Number(shipForm.maxHp.value)||1,
+          strain: shipForm.strain ? Number(shipForm.strain.value)||0 : 0,
+          maxStrain: shipForm.maxStrain ? Number(shipForm.maxStrain.value)||0 : 0,
           numberOf: shipForm.numberOf ? Number(shipForm.numberOf.value)||1 : 1,
           speed: Number(shipForm.speed.value)||0,
           silhouette: Number(shipForm.silhouette.value)||3,
           showHp: shipForm.showHp.checked,
           showSpeed: shipForm.showSpeed.checked,
           showShield: shipForm.showShield.checked,
+          showStrain: shipForm.showStrain ? shipForm.showStrain.checked : false,
           hideFromViewer: shipForm.hideFromViewer ? shipForm.hideFromViewer.checked : true,
           shield: buildShieldFromForm(),
           x: Number(shipForm.dataset.createX)||0,
@@ -980,11 +1006,14 @@
   icon: shipForm.icon ? shipForm.icon.value : undefined,
         hp: Number(shipForm.hp.value),
         maxHp: Number(shipForm.maxHp.value),
+  strain: shipForm.strain ? Number(shipForm.strain.value) : undefined,
+  maxStrain: shipForm.maxStrain ? Number(shipForm.maxStrain.value) : undefined,
   numberOf: shipForm.numberOf ? Number(shipForm.numberOf.value) : undefined,
         speed: Number(shipForm.speed.value)
   ,showHp: shipForm.showHp.checked
   ,showSpeed: shipForm.showSpeed.checked
   ,showShield: shipForm.showShield.checked
+  ,showStrain: shipForm.showStrain ? shipForm.showStrain.checked : undefined
  ,hideFromViewer: shipForm.hideFromViewer ? shipForm.hideFromViewer.checked : undefined
   ,silhouette: Number(shipForm.silhouette.value)||3
       };
@@ -1020,11 +1049,14 @@
           shipForm.name.value = s.name;
           shipForm.hp.value = s.hp;
           shipForm.maxHp.value = s.maxHp;
+          if (shipForm.strain) shipForm.strain.value = s.strain || 0;
+          if (shipForm.maxStrain) shipForm.maxStrain.value = s.maxStrain || 0;
           if (shipForm.numberOf) shipForm.numberOf.value = s.numberOf || 1;
           shipForm.speed.value = s.speed ?? 0;
           shipForm.showHp.checked = !!s.showHp;
           shipForm.showSpeed.checked = !!s.showSpeed;
           if (shipForm.showShield) shipForm.showShield.checked = !!s.showShield;
+          if (shipForm.showStrain) shipForm.showStrain.checked = !!s.showStrain;
           if (shipForm.hideFromViewer) shipForm.hideFromViewer.checked = !!s.hideFromViewer;
           if (shipForm.silhouette) shipForm.silhouette.value = s.silhouette || 3;
           const st2 = s.shield?.type || 'none';
@@ -1043,7 +1075,8 @@
           selectedInfo.textContent = `Selected: ${s.name} (HP ${s.hp}/${s.maxHp})`;
         }
   const el = document.getElementById('ship-'+s.id);
-        if (el) { updateSpeed(el, s); applyVisibilityFlags(el, s); }
+  if (el) { updateSpeed(el, s); applyVisibilityFlags(el, s); }
+  if (el) { updateHpBar(el, s); updateStrainBar(el, s); }
   if (el) updateHiddenName(el, s);
   // If count changed, rebuild icon markup to adjust units
   if (el && el.querySelector('.icon')) {
@@ -1096,12 +1129,15 @@
         if (shipForm.icon) shipForm.icon.value = s.icon;
         shipForm.hp.value = s.hp;
         shipForm.maxHp.value = s.maxHp;
+  if (shipForm.strain) shipForm.strain.value = s.strain || 0;
+  if (shipForm.maxStrain) shipForm.maxStrain.value = s.maxStrain || 0;
         if (shipForm.numberOf) shipForm.numberOf.value = s.numberOf || 1;
         shipForm.speed.value = s.speed ?? 0;
         if (shipForm.silhouette) shipForm.silhouette.value = s.silhouette || 3;
         shipForm.showHp.checked = !!s.showHp;
         shipForm.showSpeed.checked = !!s.showSpeed;
         if (shipForm.showShield) shipForm.showShield.checked = !!s.showShield;
+  if (shipForm.showStrain) shipForm.showStrain.checked = !!s.showStrain;
         if (shipForm.hideFromViewer) shipForm.hideFromViewer.checked = !!s.hideFromViewer;
         shipForm.shieldType.value = s.shield?.type || 'none';
         shipForm.dataset.createX = '';

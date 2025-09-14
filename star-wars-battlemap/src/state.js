@@ -49,10 +49,13 @@ class BattleState {
     const arr = JSON.parse(raw);
     arr.forEach(s => {
       const shield = normalizeShield(s.shield);
-    const silhouette = clampSilhouette(s.silhouette);
-    const heading = clampHeading(s.heading);
-  const hideFromViewer = s.hideFromViewer !== undefined ? !!s.hideFromViewer : true; // default true
-  this.ships.set(s.id, { speed: 0, showHp: false, showSpeed: false, showShield: false, silhouette, heading, hideFromViewer, ...s, shield });
+      const silhouette = clampSilhouette(s.silhouette);
+      const heading = clampHeading(s.heading);
+      const hideFromViewer = s.hideFromViewer !== undefined ? !!s.hideFromViewer : true; // default true
+      const strain = Number.isFinite(Number(s.strain)) ? Number(s.strain) : 0;
+      const maxStrain = Number.isFinite(Number(s.maxStrain)) ? Number(s.maxStrain) : 0;
+      const showStrain = !!s.showStrain;
+      this.ships.set(s.id, { speed: 0, showHp: false, showSpeed: false, showShield: false, showStrain: false, strain, maxStrain, showStrain, silhouette, heading, hideFromViewer, ...s, shield });
     });
     // Initialize id counter above any existing S-prefixed numeric ids
     let maxNum = 0;
@@ -151,7 +154,7 @@ class BattleState {
   updateShip(id, patch) {
     const ship = this.ships.get(id);
     if (!ship) return { error: 'Not found' };
-  const allowed = ['name','icon','hp','maxHp','speed','x','y','showHp','showSpeed','showShield','shield','silhouette','heading','numberOf','hideFromViewer'];
+  const allowed = ['name','icon','hp','maxHp','speed','x','y','showHp','showSpeed','showShield','showStrain','shield','silhouette','heading','numberOf','hideFromViewer','strain','maxStrain'];
     for (const k of Object.keys(patch)) {
       if (allowed.includes(k) && patch[k] !== undefined) {
         if (k === 'speed') {
@@ -160,13 +163,14 @@ class BattleState {
           if (before !== after) this._pushHistory({ type: 'speed', id, from: before, to: after });
           ship[k] = after;
         }
-        else if (k === 'hp' || k === 'maxHp') ship[k] = Math.max(0, Number(patch[k])||0); // direct edits to hp aren't considered "damage" per requirement
+  else if (k === 'hp' || k === 'maxHp') ship[k] = Math.max(0, Number(patch[k])||0); // direct edits to hp aren't considered "damage" per requirement
+  else if (k === 'strain' || k === 'maxStrain') ship[k] = Math.max(0, Number(patch[k])||0);
   else if (k === 'icon') {
     const val = String(patch[k]||'').trim();
     const allowedIcons = new Set(['fighter','wing','shuttle','corvette','frigate']);
     ship[k] = allowedIcons.has(val) ? val : ship[k];
   }
-  else if (k === 'showHp' || k === 'showSpeed' || k === 'showShield') ship[k] = !!patch[k];
+  else if (k === 'showHp' || k === 'showSpeed' || k === 'showShield' || k === 'showStrain') ship[k] = !!patch[k];
   else if (k === 'shield') ship[k] = normalizeShield(patch[k]);
   else if (k === 'silhouette') ship[k] = clampSilhouette(patch[k]);
   else if (k === 'heading') ship[k] = clampHeading(patch[k]);
@@ -200,7 +204,10 @@ class BattleState {
     const showSpeed = !!data.showSpeed;
     const showShield = !!data.showShield;
     const shield = normalizeShield(data.shield);
-    const ship = { id, name, icon, x, y, hp, maxHp, speed, silhouette, heading, numberOf, hideFromViewer, showHp, showSpeed, showShield, shield };
+  const strain = Math.max(0, Math.min(9999, Number(data.strain)||0));
+  const maxStrain = Math.max(0, Math.min(9999, Number(data.maxStrain)||0));
+  const showStrain = !!data.showStrain;
+  const ship = { id, name, icon, x, y, hp, maxHp, speed, silhouette, heading, numberOf, hideFromViewer, showHp, showSpeed, showShield, showStrain, strain, maxStrain, shield };
     this.ships.set(id, ship);
     return { ...ship };
   }

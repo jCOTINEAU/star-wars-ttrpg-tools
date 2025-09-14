@@ -36,8 +36,8 @@ app.post('/api/save-state', (req, res) => {
   const outPath = path.join(__dirname, 'config', 'ships.json');
   try {
     const shipsArr = Array.from(state.ships.values()).map(s => {
-      const { id, name, icon, x, y, hp, maxHp, speed, silhouette, heading, showHp, showSpeed, showShield, shield, numberOf, hideFromViewer } = s;
-      return { id, name, icon, x, y, hp, maxHp, speed, silhouette, heading, showHp, showSpeed, showShield, shield, numberOf, hideFromViewer };
+      const { id, name, icon, x, y, hp, maxHp, strain, maxStrain, speed, silhouette, heading, showHp, showSpeed, showShield, showStrain, shield, numberOf, hideFromViewer } = s;
+      return { id, name, icon, x, y, hp, maxHp, strain, maxStrain, speed, silhouette, heading, showHp, showSpeed, showShield, showStrain, shield, numberOf, hideFromViewer };
     });
     fs.writeFileSync(outPath, JSON.stringify(shipsArr, null, 2), 'utf-8');
     res.json({ ok: true, file: 'config/ships.json' });
