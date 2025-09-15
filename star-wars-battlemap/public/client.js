@@ -143,8 +143,17 @@
   }
   function updateSquadVisibility(icon, ship) {
     const count = Math.max(1, Math.floor(ship.numberOf || 1));
-    const segment = ship.maxHp > 0 ? ship.maxHp / count : 1;
-    const visible = Math.min(count, Math.max(0, Math.ceil((ship.hp || 0) / segment)));
+    // HP-based visibility (existing behavior)
+    const hpSegment = ship.maxHp > 0 ? ship.maxHp / count : 1;
+    const hpVisible = Math.min(count, Math.max(0, Math.ceil((ship.hp || 0) / hpSegment)));
+    // Strain-based visibility: treat strain like a secondary pool; if maxStrain provided, also gate units
+    let strainVisible = count;
+    if (ship.maxStrain && ship.maxStrain > 0) {
+      const strainSegment = ship.maxStrain / count;
+      strainVisible = Math.min(count, Math.max(0, Math.ceil((ship.strain || 0) / strainSegment)));
+    }
+    // Use the minimum so that depletion of either resource reduces the squad
+    const visible = Math.min(hpVisible, strainVisible);
     const units = icon.querySelectorAll('.unit');
     units.forEach((u, idx) => {
       u.style.display = (idx < visible) ? 'block' : 'none';
@@ -743,6 +752,8 @@
             icon: src.icon,
             hp: src.hp,
             maxHp: src.maxHp,
+            strain: src.strain,
+            maxStrain: src.maxStrain,
             numberOf: src.numberOf,
             speed: src.speed,
             silhouette: src.silhouette,
@@ -751,6 +762,7 @@
             showHp: src.showHp,
             showSpeed: src.showSpeed,
             showShield: src.showShield,
+            showStrain: src.showStrain,
             hideFromViewer: src.hideFromViewer,
             srcX: src.x,
             srcY: src.y
@@ -770,6 +782,8 @@
           icon: clipboardShip.icon,
           hp: clipboardShip.hp,
             maxHp: clipboardShip.maxHp,
+            strain: clipboardShip.strain,
+            maxStrain: clipboardShip.maxStrain,
             numberOf: clipboardShip.numberOf,
             speed: clipboardShip.speed,
             silhouette: clipboardShip.silhouette,
@@ -778,6 +792,7 @@
             showHp: clipboardShip.showHp,
             showSpeed: clipboardShip.showSpeed,
             showShield: clipboardShip.showShield,
+            showStrain: clipboardShip.showStrain,
             hideFromViewer: clipboardShip.hideFromViewer,
             x: spawnX,
             y: spawnY
