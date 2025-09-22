@@ -621,6 +621,17 @@
     el.addEventListener('touchstart', (e) => pointerDown(e.touches[0]), { passive: true });
     window.addEventListener('touchmove', (e) => pointerMove(e.touches[0]), { passive: true });
     window.addEventListener('touchend', pointerUp, { passive: true });
+    // Fallback click (some iPad browsers may synthesize click without proper mouseup/mousedown sequence or swallow touchend)
+    el.addEventListener('click', (e) => {
+      // If a drag or long press already processed, ignore
+      if (dragging || longPressTriggered) return;
+      // If selection already this ship treat as toggle behavior consistent with pointerUp path
+      if (selectedShipId !== id) {
+        selectShip(id);
+      } else {
+        // Keep selected (no auto toggle off on simple click) to match previous logic
+      }
+    });
   }
 
   function handleFullState(data) {
