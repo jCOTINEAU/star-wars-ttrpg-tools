@@ -614,13 +614,105 @@
       startPos = null;
     }
 
-    el.addEventListener('mousedown', pointerDown);
-    window.addEventListener('mousemove', pointerMove);
-    window.addEventListener('mouseup', pointerUp);
-    // Touch / stylus support
-    el.addEventListener('touchstart', (e) => pointerDown(e.touches[0]), { passive: true });
-    window.addEventListener('touchmove', (e) => pointerMove(e.touches[0]), { passive: true });
-    window.addEventListener('touchend', pointerUp, { passive: true });
+    // Try modern Pointer Events API first (better browser support)
+    if ('onpointerdown' in window) {
+      // Modern Pointer Events (works on most browsers including mobile)
+      el.addEventListener('pointerdown', function(e) {
+        if (e.button !== undefined && e.button !== 0) return; // only primary pointer
+        e.preventDefault();
+        e.stopPropagation();
+        el.setPointerCapture(e.pointerId); // Capture all pointer events to this element
+        pointerDown(e);
+      });
+      
+      el.addEventListener('pointermove', function(e) {
+        if (!startPos) return;
+        e.preventDefault();
+        e.stopPropagation();
+        pointerMove(e);
+      });
+      
+      el.addEventListener('pointerup', function(e) {
+        e.preventDefault();
+        e.stopPropagation();
+        if (el.hasPointerCapture) el.releasePointerCapture(e.pointerId);
+        pointerUp(e);
+      });
+      
+      el.addEventListener('pointercancel', function(e) {
+        if (el.hasPointerCapture) el.releasePointerCapture(e.pointerId);
+        if (startPos) {
+          startPos = null;
+          dragging = false;
+          clearTimers();
+          el.classList.remove('pressing', 'dragging');
+        }
+      });
+      
+    } else {
+      // Fallback to mouse + touch events for older browsers
+      
+      // Mouse events
+      el.addEventListener('mousedown', pointerDown);
+      window.addEventListener('mousemove', pointerMove);
+      window.addEventListener('mouseup', pointerUp);
+      
+      // Touch events - simplified approach
+      let isThisShipTouching = false;
+      
+      el.addEventListener('touchstart', function(e) {
+        if (isThisShipTouching) return;
+        
+        isThisShipTouching = true;
+        const touch = e.touches[0];
+        
+        // Immediately prevent default to stop all iOS interference
+        e.preventDefault();
+        e.stopPropagation();
+        
+        // Start the drag logic
+        pointerDown(touch);
+      });
+      
+      el.addEventListener('touchmove', function(e) {
+        if (!isThisShipTouching || !startPos) return;
+        
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const touch = e.touches[0];
+        if (touch) {
+          pointerMove(touch);
+        }
+      });
+      
+      el.addEventListener('touchend', function(e) {
+        if (!isThisShipTouching) return;
+        
+        isThisShipTouching = false;
+        e.preventDefault();
+        e.stopPropagation();
+        
+        const touch = e.changedTouches[0];
+        if (touch) {
+          pointerUp(touch);
+        }
+      });
+      
+      el.addEventListener('touchcancel', function(e) {
+        if (!isThisShipTouching) return;
+        
+        isThisShipTouching = false;
+        
+        // Clean up state
+        if (startPos) {
+          startPos = null;
+          dragging = false;
+          clearTimers();
+          el.classList.remove('pressing', 'dragging');
+        }
+      });
+    }
     // Fallback click (some iPad browsers may synthesize click without proper mouseup/mousedown sequence or swallow touchend)
     el.addEventListener('click', (e) => {
       // If a drag or long press already processed, ignore
